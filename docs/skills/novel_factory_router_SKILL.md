@@ -108,6 +108,14 @@ NOVEL_WRITE_MODE 必须执行：
 9. 跳卷、跳章。
 10. 当前章未入库就写下一章。
 
+### 证据门禁约束
+
+11. 非首章写作：必须读取 previous_tail **且** 生成 continuity_evidence_report。
+12. 任何新 hard fact：必须可追溯到 task_card / plan / state / user_instruction（写入 canon_evidence_map）。
+13. 每个 scene：必须提交 scene_delta，证明该场景推进了主线/人物/伏笔/承诺/世界观/情绪之一。
+14. 章节未通过 continuity_evidence / canon_evidence / padding_evidence 任一证据门禁：**禁止 ingest**。
+15. 章节没有 execution_receipt：**不得声称已执行**。
+
 ============================================================
 五、失败判定
 ============================================================

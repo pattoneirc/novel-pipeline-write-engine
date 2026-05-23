@@ -115,6 +115,67 @@ def main() -> None:
     if d.get("next_allowed") is not True:
         fail("next_allowed must be true")
 
+    # ── continuity evidence ──
+    chapter_no = int(d.get("chapter_no", 0))
+    if chapter_no > 1:
+        if d.get("previous_tail_used") is not True:
+            fail("previous_tail_used must be true for non-first chapter")
+        if d.get("previous_chapter_link_passed") is not True:
+            fail("previous_chapter_link_passed must be true")
+        if float(d.get("continuity_evidence_score", 0)) < 0.8:
+            fail("continuity_evidence_score below 0.8")
+        if int(d.get("missing_hooks_count", 0)) > 0:
+            fail("missing_hooks_count > 0")
+        if int(d.get("forgotten_states_count", 0)) > 0:
+            fail("forgotten_states_count > 0")
+
+    # ── context usage ──
+    if d.get("recent_summaries_used") is not True:
+        fail("recent_summaries_used must be true")
+    if d.get("character_states_used") is not True:
+        fail("character_states_used must be true")
+    if d.get("plot_threads_used") is not True:
+        fail("plot_threads_used must be true")
+    if d.get("reader_promises_used") is not True:
+        fail("reader_promises_used must be true")
+    if d.get("volume_context_used") is not True:
+        fail("volume_context_used must be true")
+
+    # ── padding evidence ──
+    padding_score = int(d.get("padding_score", 0))
+    padding_level = d.get("padding_level", "none")
+    if padding_score > 60:
+        fail(f"padding_score {padding_score} > 60")
+    if padding_level == "fail":
+        fail("padding_level is 'fail'")
+    if not d.get("padding_report_path"):
+        fail("padding_report_path missing")
+    if not d.get("scene_delta_report_path"):
+        fail("scene_delta_report_path missing")
+    effective_scenes = int(d.get("effective_scene_delta_count", 0))
+    if effective_scenes < 3 and not bool(d.get("allow_short_chapter", False)):
+        fail(f"effective_scene_delta_count {effective_scenes} < 3")
+
+    # ── canon evidence ──
+    if not d.get("canon_evidence_map_path"):
+        fail("canon_evidence_map_path missing")
+    if float(d.get("evidence_coverage", 0)) < 0.95:
+        fail("evidence_coverage below 0.95")
+    if int(d.get("hard_claims_without_source", 0)) > 0:
+        fail("hard_claims_without_source > 0")
+
+    # ── volume bridge ──
+    volume_no = int(d.get("volume_no", 1))
+    if chapter_no > 1 and volume_no > 1:
+        if "volume_bridge_report_used" in d and d.get("volume_bridge_report_used") is not True:
+            fail("volume_bridge_report_used must be true for non-first volume")
+
+    # ── execution proof ──
+    if not d.get("execution_receipt_path"):
+        fail("execution_receipt_path missing")
+    if d.get("execution_receipt_verified") is not True:
+        fail("execution_receipt_verified must be true")
+
     print("PASS_NOVEL_WRITE_GUARD")
 
 

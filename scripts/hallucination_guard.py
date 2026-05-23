@@ -235,7 +235,25 @@ def run_hallucination_check(text, chapter_no, task_card=None, prev_tail="",
 
     # Decision
     critical_blockers = [b for b in blocked if b["severity"] in ("high", "critical")]
-    status = "FAIL" if critical_blockers or contradictions else "PASS"
+
+    # ── Enhanced fields for evidence gate integration ──
+    total_hard_claims = len([f for f in all_findings if f.get("severity") in ("high", "critical", "medium")])
+    hard_without_source = len(unsupported)
+    soft_detail_count = len([f for f in all_findings if f.get("type") == "soft_detail"])
+    inferred_count = len([f for f in all_findings if f.get("type") == "inferred_from_known_fact"])
+
+    evidence_coverage = 1.0
+    if total_hard_claims > 0:
+        evidence_coverage = max(0.0, 1.0 - (hard_without_source / total_hard_claims))
+
+    # evidence_coverage < 0.95 or hard_claims_without_source > 0 => FAIL
+    evidence_fail = False
+    if evidence_coverage < 0.95:
+        evidence_fail = True
+    if hard_without_source > 0:
+        evidence_fail = True
+
+    status = "FAIL" if (critical_blockers or contradictions or evidence_fail) else "PASS"
 
     report = {
         "chapter_no": chapter_no,
@@ -246,7 +264,15 @@ def run_hallucination_check(text, chapter_no, task_card=None, prev_tail="",
         "contradictions": [{"text": c["text"], "reason": c.get("context","")} for c in contradictions],
         "new_canon_items": [f for f in canon_findings if f["type"] == "allowed_new_canon"],
         "forgotten_state_items": state_findings,
-        "final_decision": status
+        "final_decision": status,
+        "claims_checked": len(all_findings),
+        "canon_confirmed_count": len([f for f in canon_findings if f["type"] == "allowed_new_canon"]),
+        "allowed_new_canon_count": len([f for f in canon_findings if f["type"] == "allowed_new_canon"]),
+        "inferred_claims_count": inferred_count,
+        "soft_detail_count": soft_detail_count,
+        "evidence_coverage": round(evidence_coverage, 3),
+        "hard_claims_without_source": hard_without_source,
+        "canon_evidence_map_path": ""
     }
 
     return report

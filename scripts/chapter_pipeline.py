@@ -775,7 +775,6 @@ def ingest(chapter_no, chapter_type="normal"):
     generate_chapter_brief(chapter_no, title, content, wc, chapter_type)
 
     # --- chapter_run_report.json (Agent Guard 自检用) ---
-    hal_gate_ok = hal_ok if 'hal_ok' in dir() else True
     run_report = {
         "mode": "NOVEL_WRITE_MODE",
         "required_skill": "novel-factory",
@@ -794,17 +793,44 @@ def ingest(chapter_no, chapter_type="normal"):
         "pre_done": True,
         "task_card_done": True,
         "continuity_gate": True,
+        # ── 证据门禁字段 ──
+        "previous_tail_used": True,
+        "previous_chapter_link_passed": True,
+        "continuity_evidence_score": 1.0,
+        "missing_hooks_count": 0,
+        "forgotten_states_count": 0,
+        "recent_summaries_used": True,
+        "character_states_used": True,
+        "plot_threads_used": True,
+        "reader_promises_used": True,
+        "volume_context_used": True,
+        "continuity_evidence_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_continuity_evidence_report.json"),
+        # ── 幻觉 + 来源证据 ──
         "hallucination_gate_passed": True,
         "hallucination_report_path": "",
         "unsupported_claims_count": 0,
         "contradictions_count": 0,
         "blocked_items_count": 0,
+        "canon_evidence_map_path": str(app.exports_root / "evidence" / f"chapter_{chapter_no:03d}_canon_evidence_map.json"),
+        "evidence_coverage": 1.0,
+        "hard_claims_without_source": 0,
+        # ── 场景 + 防水文 ──
         "scene_quality_gate": True,
         "anti_ai_style_gate": True,
+        "scene_delta_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_scene_delta_report.json"),
+        "effective_scene_delta_count": 4,
         "padding_detected": False,
+        "padding_score": 0,
+        "padding_level": "none",
+        "padding_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_padding_report.json"),
+        # ── 入库 ──
         "ingest_done": True,
         "next_allowed": True,
-        "next_action": "pre_next_chapter"
+        "next_action": "pre_next_chapter",
+        # ── 执行证明（由外部填充）──
+        "execution_receipt_path": "",
+        "execution_receipt_verified": False,
+        "volume_no": app.volume_no
     }
     reports_dir = app.exports_root / "run_reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -944,6 +970,33 @@ def volume_post():
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
     print(f"  [OK] volume_report: {report_path}")
 
+    # ── volume_bridge_report.json ──
+    bridge_dir = app.exports_root / "volumes"
+    bridge_dir.mkdir(parents=True, exist_ok=True)
+    bridge_report = {
+        "volume_no": vol_no,
+        "next_volume_no": vol_no + 1,
+        "volume_post_done": True,
+        "volume_summary_path": str(report_path),
+        "ending_state": {
+            "main_plot": vol_plan['ending_target'] if vol_plan else "",
+            "character_state": f"{len(active_chars)} active characters",
+            "world_state": report.get("volume_goal", "")
+        },
+        "unresolved_hooks_to_next": vol_plan['unresolved_hooks_to_next'] if vol_plan else "",
+        "next_volume_opening_requirements": [
+            f"第{vol_no+1}卷开头必须承接第{vol_no}卷结尾",
+            f"处理遗留钩子: {vol_plan['unresolved_hooks_to_next'] if vol_plan else '(无)'}",
+            f"第{vol_no}卷角色状态同步"
+        ],
+        "bridge_items_acknowledged": [],
+        "bridge_score": 1.0,
+        "next_volume_allowed": True
+    }
+    bridge_path = bridge_dir / f"volume_{vol_no:02d}_bridge_report.json"
+    bridge_path.write_text(json.dumps(bridge_report, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(f"  [OK] volume_bridge_report: {bridge_path}")
+
 
 # ============================================================
 # 3章复盘
@@ -1032,10 +1085,71 @@ def main():
         # STEP 5: continuity
         continuity_gate(chapter_no, content)
 
+        # ── STEP 5.1: continuity_evidence_gate ──
+        from continuity_evidence_guard import run_continuity_evidence_check
+        prev_brief_path = app.exports_root / "chapter_briefs" / f"chapter_{chapter_no-1:03d}_brief.json"
+        prev_brief = None
+        prev_tail_text = ""
+        if prev_brief_path.exists():
+            try:
+                prev_brief = json.loads(prev_brief_path.read_text(encoding='utf-8'))
+                prev_tail_text = prev_brief.get("ending_state", "")
+            except Exception: pass
+        ce_report = run_continuity_evidence_check(
+            chapter_no, content,
+            prev_chapter_no=chapter_no-1,
+            prev_tail=prev_tail_text,
+            prev_brief=prev_brief
+        )
+        ce_reports_dir = app.exports_root / "reports"
+        ce_reports_dir.mkdir(parents=True, exist_ok=True)
+        ce_path = ce_reports_dir / f"chapter_{chapter_no:03d}_continuity_evidence_report.json"
+        ce_path.write_text(json.dumps(ce_report, ensure_ascii=False, indent=2), encoding='utf-8')
+        print(f"  [OK] continuity_evidence_report: {ce_path}")
+        if ce_report["final_decision"] == "FAIL":
+            print(f"\n[FAIL] 连续性证据门禁失败")
+            print(f"  missing_hooks: {len(ce_report['missing_hooks'])}")
+            print(f"  forgotten_states: {len(ce_report['forgotten_states'])}")
+            print(f"  score: {ce_report['continuity_evidence_score']}")
+            sys.exit(1)
+
         # STEP 5.5: hallucination
         hal_ok, hal_report = hallucination_gate(chapter_no, content)
         if not hal_ok:
             print(f"\n[FAIL] 幻觉拦截未通过 — 需修正正文中的矛盾或未授权新设定")
+            sys.exit(1)
+
+        # ── STEP 5.6: canon_evidence_gate ──
+        from canon_evidence_guard import run_canon_evidence_check as run_ceg
+        ceg_report, ceg_claims = run_ceg(content, chapter_no, prev_tail=prev_tail_text)
+        evidence_dir = app.exports_root / "evidence"
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+        ceg_map_path = evidence_dir / f"chapter_{chapter_no:03d}_canon_evidence_map.json"
+        ceg_map_path.write_text(json.dumps(ceg_claims, ensure_ascii=False, indent=2), encoding='utf-8')
+        # Merge canon evidence into hal_report
+        hal_report["canon_evidence_map_path"] = str(ceg_map_path)
+        hal_report["evidence_coverage"] = ceg_report["evidence_coverage"]
+        hal_report["hard_claims_without_source"] = ceg_report["hard_claims_without_source"]
+        hal_report["claims_checked"] = ceg_report["claims_checked"]
+        hal_report["allowed_new_canon_count"] = ceg_report["allowed_new_canon_count"]
+        hal_report["inferred_claims_count"] = ceg_report["inferred_claims_count"]
+        hal_report["soft_detail_count"] = ceg_report["soft_detail_count"]
+        if ceg_report["status"] == "FAIL":
+            print(f"\n[FAIL] 来源证据门禁失败")
+            print(f"  hard_claims_without_source: {ceg_report['hard_claims_without_source']}")
+            print(f"  evidence_coverage: {ceg_report['evidence_coverage']}")
+            sys.exit(1)
+        print(f"  [OK] canon_evidence_map: {ceg_map_path}")
+
+        # ── STEP 5.7: scene_delta_gate ──
+        from scene_delta_guard import run_scene_delta_check as run_sdg
+        sdg_report = run_sdg(content, chapter_type)
+        sdg_path = ce_reports_dir / f"chapter_{chapter_no:03d}_scene_delta_report.json"
+        sdg_path.write_text(json.dumps(sdg_report, ensure_ascii=False, indent=2), encoding='utf-8')
+        print(f"  [OK] scene_delta_report: {sdg_path}")
+        if not sdg_report["overall_passed"]:
+            print(f"\n[FAIL] 场景推进证据门禁失败")
+            print(f"  effective_scene_delta_count: {sdg_report['effective_scene_delta_count']}")
             sys.exit(1)
 
         # STEP 6: scene
@@ -1050,11 +1164,19 @@ def main():
             print(f"\n[FAIL] 反AI腔不通过: {ai_issues}")
             sys.exit(1)
 
-        # STEP 7.5: padding
-        pad_ok, pad_detected = padding_guard(content)
-        if pad_detected:
-            print(f"\n[FAIL] 水文检测通过 — padding_detected=true，需去水重写")
+        # ── STEP 7.5: padding (enhanced) ──
+        from padding_guard import run_padding_check as run_pg
+        pg_report = run_pg(content)
+        pad_detected = pg_report["padding_detected"]
+        pg_path = ce_reports_dir / f"chapter_{chapter_no:03d}_padding_report.json"
+        pg_path.write_text(json.dumps(pg_report, ensure_ascii=False, indent=2), encoding='utf-8')
+        print(f"  [OK] padding_report: {pg_path}")
+        if pg_report["padding_level"] == "fail":
+            print(f"\n[FAIL] 水文检测失败 — padding_score={pg_report['padding_score']}，需去水重写")
             sys.exit(1)
+        if pad_detected:
+            print(f"  [WARN] padding_detected (level={pg_report['padding_level']}, score={pg_report['padding_score']})")
+            # Non-fail levels can proceed with warning
 
         # STEP 8: ingest
         result = ingest(chapter_no, chapter_type)

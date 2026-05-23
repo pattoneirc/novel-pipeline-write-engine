@@ -666,3 +666,15 @@ CREATE TABLE IF NOT EXISTS title_history (
 当前卷最后一章 post / ingest / volume_post 通过后，立刻 pre 下一卷第一章。
 不问“继续吗”，不问“要不要修整”，不因为扩容 pipeline、补数据库、做审计报告偏离正文写作。
 除非用户明确暂停、重写、修订，否则默认按章序、卷序无缝推进。
+
+============================================================
+十五、执行证据原则
+============================================================
+
+以下原则不是口号，每一条都必须有对应的证据文件：
+
+1. **章连续性不是口号** — 每章必须产出 `continuity_evidence_report.json`，证明本章开头从上一章结尾自然承接。
+2. **卷连续性不是口号** — 每卷必须产出 `volume_bridge_report.json`，证明本卷从上一卷结尾自然承接。
+3. **写作不是水文** — 每个 scene 必须提交 `scene_delta_report.json`，证明场景有实质推进而非 padding。
+4. **新事实不是自由创作** — 每个 hard fact 必须提交证据来源（task_card / plan / state / user_instruction），写入 `canon_evidence_map.json`。
+5. **Hermes 不得用自然语言声称执行** — 必须提供 `execution_receipt.json`，包含 commands_run、exit_codes、timestamps，证明工具确实调用过。

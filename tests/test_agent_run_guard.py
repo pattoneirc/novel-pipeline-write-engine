@@ -30,7 +30,19 @@ def _valid_report(**overrides):
         "hallucination_gate_passed": True, "unsupported_claims_count": 0,
         "contradictions_count": 0, "blocked_items_count": 0,
         "scene_quality_gate": True, "anti_ai_style_gate": True, "padding_detected": False,
-        "ingest_done": True, "next_allowed": True
+        "ingest_done": True, "next_allowed": True,
+        "previous_tail_used": True, "previous_chapter_link_passed": True,
+        "continuity_evidence_score": 1.0, "missing_hooks_count": 0, "forgotten_states_count": 0,
+        "recent_summaries_used": True, "character_states_used": True,
+        "plot_threads_used": True, "reader_promises_used": True, "volume_context_used": True,
+        "padding_score": 0, "padding_level": "none",
+        "padding_report_path": "exports/demo/reports/ch_001_padding.json",
+        "scene_delta_report_path": "exports/demo/reports/ch_001_scene_delta.json",
+        "effective_scene_delta_count": 4,
+        "canon_evidence_map_path": "exports/demo/evidence/ch_001_canon.json",
+        "evidence_coverage": 1.0, "hard_claims_without_source": 0,
+        "execution_receipt_path": "exports/demo/receipts/ch_001_receipt.json",
+        "execution_receipt_verified": True, "volume_no": 1
     }
     base.update(overrides)
     return base
@@ -67,4 +79,38 @@ class TestGuardFail:
 
     def test_padding_detected_blocks(self):
         rc, out = _run_guard(_valid_report(padding_detected=True))
+        assert rc != 0
+
+    # ── New guard checks ──
+
+    def test_previous_tail_used_false_fails(self):
+        rc, out = _run_guard(_valid_report(chapter_no=2, previous_tail_used=False))
+        assert rc != 0
+
+    def test_missing_hooks_fails(self):
+        rc, out = _run_guard(_valid_report(chapter_no=2, missing_hooks_count=1))
+        assert rc != 0
+
+    def test_forgotten_states_fails(self):
+        rc, out = _run_guard(_valid_report(chapter_no=2, forgotten_states_count=1))
+        assert rc != 0
+
+    def test_padding_score_exceeds_fails(self):
+        rc, out = _run_guard(_valid_report(padding_score=65))
+        assert rc != 0
+
+    def test_padding_level_fail_fails(self):
+        rc, out = _run_guard(_valid_report(padding_level="fail"))
+        assert rc != 0
+
+    def test_evidence_coverage_low_fails(self):
+        rc, out = _run_guard(_valid_report(evidence_coverage=0.90))
+        assert rc != 0
+
+    def test_hard_claims_without_source_fails(self):
+        rc, out = _run_guard(_valid_report(hard_claims_without_source=1))
+        assert rc != 0
+
+    def test_execution_receipt_verified_false_fails(self):
+        rc, out = _run_guard(_valid_report(execution_receipt_verified=False))
         assert rc != 0

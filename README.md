@@ -135,6 +135,28 @@ SQLite 记住 → 门禁防偷懒 → 摘要防迷路 → 版本可回滚
 
 ---
 
+## Evidence Gates (v0.3.1+)
+
+| Gate | 证据文件 | 证明内容 |
+|------|----------|----------|
+| Continuity | `continuity_evidence_report.json` | 章与章之间的承接关系有据可查 |
+| Anti-padding | `padding_score` + `scene_delta_report.json` | 每场景有实质推进，无凑字/灌水 |
+| Anti-hallucination | `canon_evidence_map.json` + `hard_claims_without_source` | 每个硬事实有明确来源 |
+| Volume bridge | `volume_bridge_report.json` | 卷与卷之间的衔接有据可查 |
+| Execution proof | `execution_receipt.json` | 命令确实执行过，工具调用可审计 |
+
+### 硬规则
+
+- **No commands_run** = 未执行
+- **No run_report** = 章节未完成
+- **No PASS_NOVEL_WRITE_GUARD** = 未通过
+- **No ingest_done** = 未入库
+- **No previous_tail_used** = 上下文不连续
+- **No volume_bridge_report** = 卷不连续
+- **No execution_receipt** = 执行未证明
+
+---
+
 ## Hermes Agent 正文写作强制规则
 
 本项目的 8 步流水线不是普通提示词，而是 Agent 强制执行协议。

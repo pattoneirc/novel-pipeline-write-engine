@@ -71,10 +71,26 @@ python scripts/chapter_pipeline.py volume --config config.json --novel-slug demo
 python scripts/agent_run_guard.py exports/run_reports/chapter_001_run_report.json
 ```
 
+## Evidence Gate Pipeline
+
+```
+continuity_evidence → claim_extract → canon_evidence_guard → hallucination → scene_delta → padding → execution_receipt
+```
+
+| Evidence Gate | 证明内容 |
+|---------------|----------|
+| continuity_evidence | 本章承接上一章结尾，context 连续 |
+| claim_extract | 提取本章所有硬事实声明 |
+| canon_evidence_guard | 每个硬事实可追溯到 plan/state/instruction |
+| hallucination | 无无依据新设定、无矛盾、无遗忘状态 |
+| scene_delta | 每场景有实质推进，非 padding |
+| padding | 无重复/灌水/凑字 |
+| execution_receipt | 命令确实执行，工具调用可审计 |
+
 ## 输出文件
 
 | 阶段 | 输出 |
 |------|------|
 | pre | context_pack.txt, pipeline_state.json |
-| post | chapter_brief.json, chapter_run_report.json, hallucination_report.json |
-| volume | volume_report.json |
+| post | chapter_brief.json, chapter_run_report.json, hallucination_report.json, continuity_evidence_report.json, scene_delta_report.json, canon_evidence_map.json, execution_receipt.json |
+| volume | volume_report.json, volume_bridge_report.json |
