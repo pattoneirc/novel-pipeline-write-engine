@@ -1,0 +1,23 @@
+{
+  "_comment": "Novel Pipeline - Write Engine 配置文件",
+  "_instructions": "复制此文件为 config.json 并修改路径",
+
+  "db_path": "./data/novel_memory.db",
+  "novels_root": "./novels",
+  "exports_root": "./exports",
+
+  "word_count": {
+    "hard_min": 3300,
+    "ideal_min": 3500,
+    "ideal_max": 3900,
+    "normal_max": 4200,
+    "special_max": 5000
+  },
+
+  "scene_quality": {
+    "min_effective_scenes": 4
+  },
+
+  "default_novel_slug": "demo_novel",
+  "default_novel_title": "示例小说"
+}

@@ -30,6 +30,12 @@ Thumbs.db
 .vscode/
 .idea/
 
+# User config
+config.json
+
+# Runtime data
+data/
+
 # Novel content (user's own work)
 novels/
 小说/
