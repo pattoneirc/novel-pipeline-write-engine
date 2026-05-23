@@ -5,13 +5,13 @@ Novel Pipeline - Write Engine 开发路线图。
 ## Phase 1: 项目可运行 ✅ (已完成)
 
 - [x] README 对齐真实仓库结构，标注"早期原型"
-- [x] config.example.json — 配置模板（3300 红线，4 场景）
+- [x] config.example.json — 配置模板（V5 字数规则：按 chapter_type 分级）
 - [x] database/schema.sql — 完整 SQLite 表结构（26 表 + 6 FTS5）
 - [x] scripts/init_db.py — 一键建库
 - [x] scripts/check_schema.py — Schema 完整性检查
 - [x] scripts/import_outline_skeleton.py — JSON 标题骨架 → SQLite
 - [x] scripts/chapter_pipeline.py — argparse + config 驱动，无硬编码
-- [x] 字数门禁：<3300 失败，3500-3900 最佳
+- [x] 字数门禁：按类型分级（普通1900-3300, 重点1900-4200, 高潮1900-5500）
 - [x] 场景门禁：>=4 有效场景
 - [x] examples/demo_novel/ — 25 章 demo 项目
 - [x] docs/skills/long_novel_writing_SKILL.md — 通用写作行为规范

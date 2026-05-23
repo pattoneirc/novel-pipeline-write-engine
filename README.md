@@ -87,7 +87,7 @@ novel-pipeline-write-engine/
 | volume_post | 卷级总结 + volume_report.json |
 | title_history | 标题变更自动记录 |
 | chapter_plans 状态 | planned → written → ingested，同步 actual_word_count |
-| 字数门禁 | < 3300 失败，3500–3900 最佳 |
+| 字数门禁 | 按类型: 普通1900-3300, 重点1900-4200, 高潮1900-5500, 短章300-1000 |
 | 场景门禁 | ≥ 4 有效场景 |
 | `schema.sql` | 26 表 + 6 FTS5 索引，含 volume_plans / chapter_plans / title_history |
 | `init_db.py` | 一键建库 |
@@ -166,7 +166,7 @@ Refuse to write novel正文 in normal chat mode.
 ## Skills
 
 - [novel-factory Router](docs/skills/novel_factory_router_SKILL.md) — **正文写作前必读**：模式路由 / NOVEL_WRITE_MODE 触发词 / 执行头 / 失败判定
-- [长篇写作行为规范](docs/skills/long_novel_writing_SKILL.md) — 3300 红线 / 4 场景 / 章章入库 / 卷卷入库 / 标题骨架规则
+- [长篇写作行为规范](docs/skills/long_novel_writing_SKILL.md) — 1800 底线 / 4 场景 / 章章入库 / 卷卷入库 / 标题骨架规则
 
 ## 文档
 

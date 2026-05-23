@@ -25,8 +25,8 @@ pre
 ## Chunked Writing Mode
 
 - chunk 是写作单位，chapter 是入库单位
-- 3300 字红线只卡 assembled_chapter，不卡单个 chunk
-- 单个 chunk 建议 300~900 字
+- 字数门禁按 chapter_type 分级：普通1900-3300, 重点1900-4200, 高潮1900-5500
+- 单个 chunk 建议 300~900 字，assembled_chapter 达到类型最低线即可
 - 每章建议 4~7 个 chunks
 - chunk 失败只重写该 chunk，不重写整章
 - assembled_chapter 字数不足时补缺失场景，禁止补水文
@@ -49,9 +49,18 @@ chunk 合格条件：
 - 检测：连续三段同义 / 空泛心理 / 设定堆砌无行动 / 尾部补独白
 - 字数不足时补场景，不补废话
 
-## 字数门禁 (V4)
+## 字数门禁 (V5)
 
-3300 红线只适用于 assembled_chapter。单个 write_chunk 不要求 3300。
+按 chapter_type 分级，类型只决定允许上限，不强制下限：
+
+| 类型 | 范围 | 最佳 |
+|------|------|------|
+| normal | 1900–3300 | 1900–2800 |
+| key | 1900–4200 | 2200–3300 |
+| climax/volume_finale | 1900–5500 | 2300–3800 |
+| authorized_short | 300–1000 | 500–900 |
+
+高潮不代表字多。重点不代表字多。短而完整优先通过。
 
 ## 调用示例
 

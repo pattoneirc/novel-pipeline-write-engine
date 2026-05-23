@@ -101,7 +101,7 @@ NOVEL_WRITE_MODE 必须执行：
 2. 没 task_card 就写正文。
 3. 没调用 novel-factory 就写正文。
 4. 没 ingest 就说章节完成。
-5. 低于 3300 字还入正稿。
+5. 低于类型最低线还入正稿。
 6. 用户要求写正文时转去做审计。
 7. 用户要求写正文时转去扩容系统。
 8. 问"要不要继续"。
@@ -121,7 +121,7 @@ NOVEL_WRITE_MODE 必须执行：
 5. 缺少 chapter_task_card。
 6. 缺少 word_count_gate。
 7. 缺少 ingest。
-8. 字数低于 3300，未被用户明确允许短章。
+8. 字数低于类型最低线，未被用户明确允许短章。
 9. 没有 chapter_ingest_report。
 10. 用户要求写正文，Agent 输出规划、审计、解释、扩容建议。
 
