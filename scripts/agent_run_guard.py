@@ -49,20 +49,37 @@ def main() -> None:
         fail("task_card_done must be true")
 
     # ── 字数 ──
-    chapter_wc_ok = d.get("chapter_word_count_gate", d.get("word_count_gate", False))
-    if chapter_wc_ok is not True:
-        fail("chapter_word_count_gate must be true")
-    assembled_wc = int(d.get("assembled_word_count", d.get("word_count", 0)))
+    length_mode = d.get("length_mode", "standard_chapter")
+    chapter_wc = int(d.get("word_count", d.get("assembled_word_count", 0)))
     allow_short = bool(d.get("allow_short_chapter", False))
-    if assembled_wc < 3300 and not allow_short:
-        fail(f"assembled_word_count {assembled_wc} below 3300 and allow_short_chapter is false")
+    chapter_type = d.get("chapter_type", "normal")
+
+    if length_mode in ("authorized_short_chapter", "fragment_draft", "micro_scene", "outline_sample"):
+        if not allow_short:
+            fail("allow_short_chapter must be true for short/fragment modes")
+        if chapter_wc < 300:
+            fail(f"word_count {chapter_wc} below 300 for short chapter")
+        if chapter_wc > 1000:
+            fail(f"word_count {chapter_wc} exceeds 1000 for short chapter")
+    else:
+        if chapter_wc < 1900 and not allow_short:
+            fail(f"word_count {chapter_wc} below 1900 minimum")
+        if length_mode in ("standard_chapter", "fixed_budget_chapter"):
+            if chapter_wc > 3300:
+                pass  # warning only
+        elif length_mode == "key_chapter":
+            if chapter_wc > 4200:
+                fail(f"word_count {chapter_wc} exceeds 4200 for key_chapter")
+        elif length_mode == "climax_chapter":
+            if chapter_wc > 5500:
+                fail(f"word_count {chapter_wc} exceeds 5500 for climax_chapter")
 
     # ── Chunked writing ──
     write_mode = d.get("write_mode", "")
     if write_mode == "chunked":
         chunk_count = int(d.get("chunk_count", 0))
-        if chunk_count < 4 and assembled_wc < 3300 and not allow_short:
-            fail(f"chunk_count {chunk_count} < 4 with word_count {assembled_wc} < 3300")
+        if chunk_count < 4 and chapter_wc < 1900 and not allow_short:
+            fail(f"chunk_count {chunk_count} < 4 with word_count {chapter_wc} < 1900")
         if d.get("chunk_gate_passed") is not True:
             fail("chunk_gate_passed must be true")
         chunk_wcs = d.get("chunk_word_counts", [])

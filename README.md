@@ -125,7 +125,7 @@ SQLite 记住 → 门禁防偷懒 → 摘要防迷路 → 版本可回滚
 | pre | 读上章结尾 + 查 SQLite + context_pack | pipeline_state 锁 |
 | task_card | 生成任务卡 | 缺失停止 |
 | write | 场景展开（≥4 场景） | Chunked Writing 分段 |
-| word_count | 字数门禁 | assembled_chapter < 3300 红灯 |
+| word_count | 字数门禁 | 按类型: 普通1900-3300, 重点1900-4200, 高潮1900-5500 |
 | continuity | 上章结尾比对 | 关键词 + 人物承接 |
 | hallucination | 幻觉拦截 | 阻止无依据新设定/矛盾 |
 | scene | 场景质量 | ≥ 4 有效场景 |

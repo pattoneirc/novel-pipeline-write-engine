@@ -13,14 +13,14 @@ class TestConfigLoad:
         """No config file -> defaults"""
         cfg = load_config("/nonexistent/path.json")
         assert cfg["db_path"] == DEFAULT_CONFIG["db_path"]
-        assert cfg["word_count"]["hard_min"] == 3300
+        assert cfg["word_count"]["normal"]["min"] == 1900
         assert cfg["scene_quality"]["min_effective_scenes"] == 4
 
     def test_load_config_file(self):
         """Custom config overrides defaults"""
         custom = {
             "db_path": "/custom/path.db",
-            "word_count": {"hard_min": 3300, "ideal_min": 3500, "ideal_max": 3900, "normal_max": 4200, "special_max": 5000},
+            "word_count": {"normal": {"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300}},
         }
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
             json.dump(custom, f)
@@ -29,6 +29,6 @@ class TestConfigLoad:
         try:
             cfg = load_config(tmp)
             assert cfg["db_path"] == "/custom/path.db"
-            assert cfg["word_count"]["hard_min"] == 3300
+            assert cfg["word_count"]["normal"]["min"] == 1900
         finally:
             os.unlink(tmp)

@@ -7,11 +7,17 @@
   "exports_root": "./exports",
 
   "word_count": {
-    "hard_min": 3300,
-    "ideal_min": 3500,
-    "ideal_max": 3900,
-    "normal_max": 4200,
-    "special_max": 5000
+    "_rule": "chapter_type只决定允许上限，不决定必须写长。高潮不代表字多。",
+    "normal":       {"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300},
+    "relationship": {"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300},
+    "investigation":{"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300},
+    "experiment":   {"min": 1900, "best_min": 2200, "best_max": 3200, "max": 4200},
+    "conflict":     {"min": 1900, "best_min": 2200, "best_max": 3300, "max": 4200},
+    "key":          {"min": 1900, "best_min": 2200, "best_max": 3300, "max": 4200},
+    "climax":       {"min": 1900, "best_min": 2300, "best_max": 3800, "max": 5500},
+    "volume_finale":{"min": 1900, "best_min": 2300, "best_max": 4200, "max": 5500},
+    "authorized_short":{"min": 300, "best_min": 500, "best_max": 900, "max": 1000},
+    "fragment":     {"min": 300, "best_min": 500, "best_max": 900, "max": 1000}
   },
 
   "scene_quality": {

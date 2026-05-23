@@ -31,7 +31,18 @@ DEFAULT_CONFIG = {
     "db_path": "./data/novel_memory.db",
     "novels_root": "./novels",
     "exports_root": "./exports",
-    "word_count": {"hard_min": 3300, "ideal_min": 3500, "ideal_max": 3900, "normal_max": 4200, "special_max": 5000},
+    "word_count": {
+        "normal":       {"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300},
+        "relationship": {"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300},
+        "investigation":{"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300},
+        "experiment":   {"min": 1900, "best_min": 2200, "best_max": 3200, "max": 4200},
+        "conflict":     {"min": 1900, "best_min": 2200, "best_max": 3300, "max": 4200},
+        "key":          {"min": 1900, "best_min": 2200, "best_max": 3300, "max": 4200},
+        "climax":       {"min": 1900, "best_min": 2300, "best_max": 3800, "max": 5500},
+        "volume_finale":{"min": 1900, "best_min": 2300, "best_max": 4200, "max": 5500},
+        "authorized_short":{"min": 300, "best_min": 500, "best_max": 900, "max": 1000},
+        "fragment":     {"min": 300, "best_min": 500, "best_max": 900, "max": 1000},
+    },
     "scene_quality": {"min_effective_scenes": 4},
 }
 
@@ -65,6 +76,7 @@ class App:
         self.volume_no = volume_no
         self.db_path = Path(cfg["db_path"])
         self.wc_rules = cfg.get("word_count", DEFAULT_CONFIG["word_count"])
+        self.wc_default = self.wc_rules.get("normal", {"min": 1900, "best_min": 1900, "best_max": 2800, "max": 3300})
         self.min_scenes = cfg.get("scene_quality", DEFAULT_CONFIG["scene_quality"])["min_effective_scenes"]
         self.novels_root = Path(cfg.get("novels_root", "./novels"))
         self.exports_root = Path(cfg.get("exports_root", "./exports"))
@@ -297,15 +309,15 @@ def pre_write_gate(chapter_no, chapter_type="normal"):
         )
     pack_path.write_text(
         f"写作上下文包-第{chapter_no}章\n{'='*40}\n"
-        f"目标字数: {app.wc_rules['ideal_min']}-{app.wc_rules['ideal_max']} | "
-        f"红线: {app.wc_rules['hard_min']}\n"
+        f"目标字数: {app.wc_default['best_min']}-{app.wc_default['best_max']} | "
+        f"下限: {app.wc_default['min']}\n"
         f"{skeleton_info}\n", encoding='utf-8')
     print(f"  [OK] context_pack: {pack_path}")
 
     # task_card (含标题骨架指引)
     print(f"\n{'='*60}")
     print(f"TASK CARD - 第{chapter_no}章 [{chapter_type}]")
-    print(f"  字数范围: {app.wc_rules['hard_min']}-{app.wc_rules['normal_max']} | 最佳: {app.wc_rules['ideal_min']}-{app.wc_rules['ideal_max']}")
+    print(f"  字数范围: {app.wc_default['min']}-{app.wc_default['max']} | 最佳: {app.wc_default['best_min']}-{app.wc_default['best_max']}")
     print(f"  必须>={app.min_scenes}场景 | >=2生活细节 | >=1不完美互动")
     print(f"  禁止: AI句式/硬科普/总结腔/空泛心理")
     if ch_plan:
@@ -345,51 +357,35 @@ def pre_write_gate(chapter_no, chapter_type="normal"):
 # STEP 4: WORD_COUNT — 字数门禁
 # ============================================================
 def word_count_gate(content, chapter_no, chapter_type="normal"):
-    rules = app.wc_rules
+    """字数门禁 V5：chapter_type 只决定上限，不强制下限"""
+    rules = app.wc_rules.get(chapter_type, app.wc_default)
     wc = _count_chinese(content)
     print(f"\n{'='*50}\nSTEP 4: 字数门禁 [{chapter_type}]\n{'='*50}")
-    print(f"  字数: {wc} | 红线: {rules['hard_min']} | 最佳: {rules['ideal_min']}-{rules['ideal_max']}")
+    print(f"  字数: {wc} | 范围: {rules['min']}-{rules['max']} | 最佳: {rules['best_min']}-{rules['best_max']}")
 
-    if wc < rules['hard_min']:
-        print(f"  [FAIL] 红灯失败 ({wc} < {rules['hard_min']}) — 必须重写")
+    if wc < rules['min']:
+        print(f"  [FAIL] 低于最低线 ({wc} < {rules['min']}) — 需补场景或授权短章")
         return False, wc
 
-    if rules['ideal_min'] <= wc <= rules['ideal_max']:
+    if rules['best_min'] <= wc <= rules['best_max']:
         print(f"  [OK] 最佳区间")
         return "ideal", wc
 
-    if app.wc_rules['hard_min'] <= wc < app.wc_rules['ideal_min']:
-        # pass_but_low: 字数额度紧，需其他门禁确认
-        vcount = 0
-        try:
-            conn_check = connect()
-            vcount = conn_check.execute(
-                "SELECT COUNT(*) FROM chapter_versions WHERE novel_id=(SELECT id FROM novels WHERE slug=?) AND chapter_no=?",
-                (app.novel_slug, chapter_no)).fetchone()[0]
-            conn_check.close()
-        except Exception:
-            pass  # table may not exist yet
-        if vcount >= 3:
-            print(f"  [FAIL] pass_but_low+版本>={vcount} — 疑似patch凑数，必须重铺场景")
-            return "patch_suspect", wc
-        print(f"  [WARN] pass_but_low ({wc} < {app.wc_rules['ideal_min']}) — 需场景/连续性确认")
-        return "pass_but_low", wc
-
-    if rules['ideal_max'] < wc <= rules['normal_max']:
+    if rules['best_max'] < wc <= rules['max']:
+        # 偏长但不超过上限 — 检查是否水文
+        if chapter_type in ("normal", "relationship", "investigation") and wc > 3300:
+            print(f"  [WARN] 普通章超过3300 — 检查是否有水文")
         print(f"  [OK] 正常通过 (偏长)")
         return True, wc
 
-    if rules['normal_max'] < wc <= rules['special_max']:
-        if chapter_type in ("climax", "final"):
-            print(f"  [OK] 特殊章允许")
+    if wc > rules['max']:
+        if chapter_type in ("climax", "volume_finale") and wc <= 5500:
+            print(f"  [OK] 高潮/卷末章允许长篇幅")
             return True, wc
-        else:
-            print(f"  [WARN] 超上限({wc}>{rules['normal_max']}) — 检查是否拖沓")
-            return "oversize", wc
+        print(f"  [WARN] 超上限({wc}>{rules['max']}) — 建议拆章或精简")
+        return "oversize", wc
 
-    # > special_max
-    print(f"  [WARN] 超长({wc}>{rules['special_max']}) — 仅卷终章建议此字数")
-    return "oversize", wc
+    return True, wc
 
 
 # ============================================================
@@ -797,8 +793,8 @@ def ingest(chapter_no, chapter_type="normal"):
         "title": title,
         "assembled_word_count": wc,
         "word_count": wc,
-        "chapter_word_count_gate": wc >= app.wc_rules['hard_min'],
-        "word_count_gate": wc >= app.wc_rules['hard_min'],
+        "chapter_word_count_gate": wc >= app.wc_default['min'],
+        "word_count_gate": wc >= app.wc_default['min'],
         "allow_short_chapter": False,
         "pre_done": True,
         "task_card_done": True,
@@ -965,7 +961,7 @@ def stage_review(chapter_no):
     cur.execute("SELECT chapter_no,title,word_count FROM chapters WHERE novel_id=? AND chapter_no BETWEEN ? AND ? ORDER BY chapter_no", (nid, start, chapter_no))
     total = 0
     for r in cur.fetchall():
-        mark = " [OK]" if r['word_count'] >= app.wc_rules['hard_min'] else " [WARN]"
+        mark = " [OK]" if r['word_count'] >= app.wc_default['min'] else " [WARN]"
         total += r['word_count']; print(f"  第{r['chapter_no']}章: {r['word_count']}字{mark}")
     print(f"  合计: {total}字 | 均: {total//3}字")
     conn.close()
@@ -1035,10 +1031,7 @@ def main():
         # STEP 4: word_count
         wc_pass, wc = word_count_gate(content, chapter_no, chapter_type)
         if wc_pass == False:
-            print(f"\n[FAIL] 字数门禁失败。需补{app.wc_rules['hard_min']-wc}字+。")
-            sys.exit(1)
-        if wc_pass == "patch_suspect":
-            print(f"\n[FAIL] 疑似patch凑数 — 必须重铺缺失场景。回到task_card找缺失场景。")
+            print(f"\n[FAIL] 字数门禁失败。需补{app.wc_default['min']-wc}字+。")
             sys.exit(1)
 
         # STEP 5: continuity
@@ -1052,10 +1045,7 @@ def main():
 
         # STEP 6: scene
         scene_ok, scene_issues = scene_quality_gate(content)
-        if wc_pass == "pass_but_low" and not scene_ok:
-            print(f"\n[FAIL] pass_but_low+场景不足 → 必须扩写")
-            sys.exit(1)
-        if not scene_ok and wc_pass != "pass_but_low":
+        if not scene_ok:
             print(f"\n[FAIL] 场景门禁失败 — 需要 >= {app.min_scenes} 有效场景")
             sys.exit(1)
 
