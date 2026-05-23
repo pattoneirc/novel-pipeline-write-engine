@@ -13,12 +13,47 @@ git clone https://github.com/remacheybn408-boop/novel-pipeline-write-engine.git
 cd novel-pipeline-write-engine
 cp config.example.json config.json
 
-# 初始化
+# 初始化数据库
 python scripts/init_db.py --config config.json
-python scripts/check_schema.py --config config.json
 
-# 测试
+# 导入 Demo 标题骨架
+python scripts/import_outline_skeleton.py --config config.json --input examples/demo_novel/outline_skeleton.json
+
+# 跑测试
 pip install pytest && pytest tests/ -v
+```
+
+---
+
+## 目录结构
+
+```
+novel-pipeline-write-engine/
+├── config.example.json              ← 配置模板
+├── config.json                      ← 你的本地配置（gitignore）
+├── skeleton.example.json            ← 示例骨架（单卷 25 章）
+│
+├── database/
+│   └── schema.sql                   ← 完整 SQLite schema（26 表 + 6 FTS5）
+├── data/                            ← 运行时数据库（gitignore，init_db 生成）
+│
+├── scripts/
+│   ├── chapter_pipeline.py          ← 8 步流水线（argparse + config 驱动）
+│   ├── import_outline_skeleton.py   ← JSON 标题骨架 → SQLite
+│   ├── init_db.py                   ← 一键建库
+│   └── check_schema.py              ← Schema 完整性检查
+│
+├── examples/
+│   └── demo_novel/
+│       └── outline_skeleton.json    ← 完整 demo：25 章标题骨架
+│
+├── tests/                           ← 14 个基础测试
+├── docs/                            ← 架构 / 规范 / 文档
+│   └── skills/
+│       └── long_novel_writing_SKILL.md
+│
+├── .github/workflows/test.yml       ← CI（pytest 自动跑）
+└── README.md
 ```
 
 ---
@@ -30,26 +65,27 @@ pip install pytest && pytest tests/ -v
 | `chapter_pipeline.py` | 8 步流水线（pre → ingest），argparse + config 驱动 |
 | 字数门禁 | < 3300 失败，3500–3900 最佳 |
 | 场景门禁 | ≥ 4 有效场景 |
-| `schema.sql` | 26 表 + 6 FTS5 索引，含 `volume_plans`/`chapter_plans`/`title_history` |
+| `schema.sql` | 26 表 + 6 FTS5 索引，含 volume_plans / chapter_plans / title_history |
 | `init_db.py` | 一键建库 |
 | `check_schema.py` | Schema 完整性检查 |
-| `import_outline_skeleton.py` | 从 JSON 导入标题骨架（校验 + 写入） |
+| `import_outline_skeleton.py` | JSON 标题骨架导入（校验 chapter_goal / conflict_point / ending_hook_direction） |
+| Demo 项目 | `examples/demo_novel/` — 25 章完整骨架可跑通全流程 |
 | Skill 文档 | `docs/skills/long_novel_writing_SKILL.md`（通用版，无具体小说绑定） |
-| CI | GitHub Actions 自动跑 `pytest tests/ -v` |
+| CI | GitHub Actions 自动跑 pytest |
 
 ---
 
 ## 进行中（Phase 2 重点）
 
-- [ ] pre 阶段从 `volume_plans`/`chapter_plans` 读取标题骨架
-- [ ] `volume_post` — 卷级总结与承接
-- [ ] `chapter_brief` 输出增强
+- [ ] pre 阶段从 volume_plans / chapter_plans 读取标题骨架
+- [ ] volume_post — 卷级总结与承接
+- [ ] chapter_brief 输出增强
 
 ---
 
 ## 后续（Phase 3）
 
-- [ ] `export_novel.py` / `backup_db.py`
+- [ ] export_novel.py / backup_db.py
 - [ ] 端到端流水线测试
 - Backlog：Web UI / FastAPI / 向量数据库
 
