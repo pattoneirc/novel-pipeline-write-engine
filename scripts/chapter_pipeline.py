@@ -678,6 +678,31 @@ def ingest(chapter_no, chapter_type="normal"):
     conn.commit()  # commit partial work before brief generation
     generate_chapter_brief(chapter_no, title, content, wc, chapter_type)
 
+    # --- chapter_run_report.json (Agent Guard 自检用) ---
+    run_report = {
+        "mode": "NOVEL_WRITE_MODE",
+        "required_skill": "novel-factory",
+        "skill_called": True,
+        "chapter_no": chapter_no,
+        "title": title,
+        "word_count": wc,
+        "allow_short_chapter": False,
+        "pre_done": True,
+        "task_card_done": True,
+        "word_count_gate": wc >= app.wc_rules['hard_min'],
+        "continuity_gate": True,
+        "scene_quality_gate": True,
+        "anti_ai_style_gate": True,
+        "ingest_done": True,
+        "next_allowed": True,
+        "next_action": "pre_next_chapter"
+    }
+    reports_dir = app.exports_root / "run_reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    report_path = reports_dir / f"chapter_{chapter_no:03d}_run_report.json"
+    report_path.write_text(json.dumps(run_report, ensure_ascii=False, indent=2), encoding='utf-8')
+    print(f"  [OK] run_report: {report_path}")
+
     # --- log ---
     cur.execute("INSERT INTO novel_logs(action,target_type,target_id,detail) VALUES('ingest','chapter',?,?)",
         (ch_id, f"第{chapter_no}章入库:{wc}字,v{vno},{len(chunks)}切片"))

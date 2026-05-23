@@ -4,6 +4,8 @@
 
 # 0. Skill Router 优先规则
 
+**任何长篇小说任务开始前，必须先读取 docs/skills/novel_factory_router_SKILL.md 进行模式路由。**
+
 本 Skill 必须先读取 docs/skills/novel_factory_router_SKILL.md。
 
 当用户当前指令属于正文写作类任务时，必须进入 NOVEL_WRITE_MODE，并调用 novel-factory skill。

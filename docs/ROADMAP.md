@@ -35,17 +35,23 @@ pytest tests/ -v
 **全部完成：**
 - [x] import_outline_skeleton.py — JSON 标题骨架导入
 - [x] volume_plans / chapter_plans 基础写入与校验
-- [x] pre 阶段读取标题骨架（volume_plans + chapter_plans）
-- [x] TASK CARD 展示骨架指引
-- [x] volume_post — 卷级统计/伏笔/角色/下一卷承接点
-- [x] ingest 后自动更新 chapter_plans 状态（planned → written → ingested）
-- [x] 卷序强制检查
-- [x] Demo outline_skeleton.json（25 章）
-- [x] chapter_brief JSON 输出（post 后生成）
-- [x] pre 读取上一章 actual chapter_brief（ending_state / hooks）
-- [x] volume_report.json 结构化输出
-- [x] title_history 自动记录标题变化
-- [x] 端到端 demo 测试（21 个测试）
+- [x] pre 阶段读取标题骨架 + TASK CARD 展示
+- [x] volume_post + volume_report.json
+- [x] chapter_brief JSON 输出 + pre 读取上章 brief
+- [x] ingest 自动更新 chapter_plans 状态 + title_history
+- [x] 卷序强制检查 + 端到端测试（21 个测试）
+- [x] Demo 项目 + CI
+
+---
+
+## Phase 2.5: Agent 路由控制 ✅ (已完成)
+
+- [x] novel_factory_router_SKILL.md — PLAN_MODE / NOVEL_WRITE_MODE 路由器
+- [x] long_novel_writing_SKILL 顶部 Section 0：优先读取 Router
+- [x] README 强制规则段：NOVEL_WRITE_MODE 执行头 + 禁止聊天模式
+- [x] agent_run_guard.py — chapter_run_report.json 自检脚本
+- [x] ingest 自动生成 chapter_run_report.json
+- [x] Skills 列表挂载 novel_factory_router 链接
 
 ---
 
