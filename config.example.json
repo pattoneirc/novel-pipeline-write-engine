@@ -48,5 +48,58 @@
       "stride": 256,
       "max_length": 512
     }
+  },
+
+  "human_grade_revision": {
+    "_comment": "Human-Grade Revision Suite (v0.4.0) — 拟人审稿质量套件. 除合规自查外均为 WARNING only.",
+    "enabled": true,
+    "version": "v0.4.0",
+    "mode": "warning_first",
+    "quality_guards_warning_only": true,
+    "compliance_guard_can_block": true,
+    "editor_revision_guard": {
+      "enabled": true,
+      "max_over_explained_ratio": 0.28,
+      "min_revision_texture_score": 0.45
+    },
+    "concrete_anchor_guard": {
+      "enabled": true,
+      "window_chars": 500,
+      "min_anchor_density": 0.22,
+      "require_object_anchor": true,
+      "require_body_action_anchor": true,
+      "require_scene_anchor": true
+    },
+    "scene_causality_guard": {
+      "enabled": true,
+      "require_cause": true,
+      "require_action": true,
+      "require_resistance": true,
+      "require_cost": true,
+      "require_result": true,
+      "require_hook": false
+    },
+    "dialogue_naturalness_guard": {
+      "enabled": true,
+      "min_dialogue_variation_score": 0.18,
+      "prefer_interruption": true,
+      "prefer_unfinished_sentence": true,
+      "prefer_action_beats": true
+    },
+    "style_variation_guard": {
+      "enabled": true,
+      "max_repeated_opening_ratio": 0.25,
+      "max_overused_abstract_words": 12,
+      "min_sentence_length_variance": 0.35
+    },
+    "compliance_selfcheck_guard": {
+      "enabled": true,
+      "block_high_risk": true,
+      "warn_medium_risk": true
+    },
+    "final_submission_report": {
+      "enabled": true,
+      "top_revision_tasks": 5
+    }
   }
 }

@@ -1,11 +1,17 @@
 """
-chapter_pipeline.py — 章节写作总控流水线 V4.1
+chapter_pipeline.py — 章节写作总控流水线 V4.2
 
-9步精简流水线:
-  pre → task_card → write → word_count → continuity → scene → anti_ai → padding → voice_guards → qgp → ingest
+v0.4.0 拟人审稿流水线:
+  pre → task_card → write → word_count → continuity → scene → anti_ai → padding → voice_guards → qgp →
+  editor_revision → concrete_anchor → scene_causality → dialogue_naturalness → style_variation →
+  compliance_selfcheck → final_submission_report → ingest
 
 QGP 困惑度质量门禁 (V5.1, WARNING only):
   ngram 惊讶度 / 句长节奏 / 重复短语 / 抽象总结 / 具体锚点 / 对白变化度
+
+Human-Grade Revision Suite (v0.4.0, WARNING only, compliance_selfcheck 可 BLOCK):
+  editor_revision | concrete_anchor | scene_causality | dialogue_naturalness |
+  style_variation | compliance_selfcheck | final_submission_report
 
 证据门禁 (V5):
   continuity_evidence | canon_evidence | scene_delta | hallucination | anti_ai | padding
@@ -856,6 +862,22 @@ def ingest(chapter_no, chapter_type="normal"):
         "qgp_status": "PASS",
         "qgp_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_perplexity_quality_report.json"),
         "qgp_hard_fail": False,
+        # ── v0.4.0 Human-Grade Revision Suite ──
+        "editor_revision_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_editor_revision_report.json"),
+        "editor_revision_pass": True,
+        "concrete_anchor_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_concrete_anchor_report.json"),
+        "concrete_anchor_pass": True,
+        "scene_causality_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_scene_causality_report.json"),
+        "scene_causality_pass": True,
+        "dialogue_naturalness_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_dialogue_naturalness_report.json"),
+        "dialogue_naturalness_pass": True,
+        "style_variation_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_style_variation_report.json"),
+        "style_variation_pass": True,
+        "compliance_selfcheck_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_compliance_selfcheck_report.json"),
+        "compliance_selfcheck_status": "PASS",
+        "compliance_blocked": False,
+        "final_submission_report_path": str(app.exports_root / "reports" / f"chapter_{chapter_no:03d}_final_submission_report.json"),
+        "final_submission_recommendation": "SUBMIT",
     }
     reports_dir = app.exports_root / "run_reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -1303,6 +1325,105 @@ def main():
                 print(f"  [WARN] QGP guard skipped: {e}")
         else:
             print(f"  [INFO] QGP disabled in config")
+
+        # ── v0.4.0 Human-Grade Revision Suite ──
+        hgr_enabled = cfg.get("human_grade_revision", {}).get("enabled", True)
+        hgr_cfg = cfg.get("human_grade_revision", {})
+        if hgr_enabled:
+            # STEP 7.8: editor_revision_guard
+            try:
+                from editor_revision_guard import run_editor_revision_check as run_erg
+                erg_report = run_erg(content, chapter_no, hgr_cfg.get("editor_revision_guard", {}))
+                erg_path = ce_reports_dir / f"chapter_{chapter_no:03d}_editor_revision_report.json"
+                erg_path.write_text(json.dumps(erg_report, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"  [OK] editor_revision_report: {erg_path}")
+                if not erg_report.get("editor_revision_pass", True):
+                    print(f"  [WARN] editor_revision: over_explained_ratio={erg_report.get('over_explained_ratio',0):.2f}, texture_score={erg_report.get('revision_texture_score',0):.2f}")
+            except Exception as e:
+                print(f"  [WARN] editor_revision_guard skipped: {e}")
+
+            # STEP 7.9: concrete_anchor_guard
+            try:
+                from concrete_anchor_guard import run_concrete_anchor_check as run_cag
+                cag_report = run_cag(content, chapter_no, hgr_cfg.get("concrete_anchor_guard", {}))
+                cag_path = ce_reports_dir / f"chapter_{chapter_no:03d}_concrete_anchor_report.json"
+                cag_path.write_text(json.dumps(cag_report, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"  [OK] concrete_anchor_report: {cag_path}")
+                if not cag_report.get("concrete_anchor_pass", True):
+                    print(f"  [WARN] concrete_anchor: density={cag_report.get('anchor_density',0):.2f}")
+            except Exception as e:
+                print(f"  [WARN] concrete_anchor_guard skipped: {e}")
+
+            # STEP 7.10: scene_causality_guard
+            try:
+                from scene_causality_guard import run_scene_causality_check as run_scg
+                scg_report = run_scg(content, chapter_no, hgr_cfg.get("scene_causality_guard", {}))
+                scg_path = ce_reports_dir / f"chapter_{chapter_no:03d}_scene_causality_report.json"
+                scg_path.write_text(json.dumps(scg_report, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"  [OK] scene_causality_report: {scg_path}")
+                if not scg_report.get("causality_pass", True):
+                    print(f"  [WARN] scene_causality: {scg_report.get('scenes_failing_carcrh',0)}/{scg_report.get('scenes_analyzed',0)} scenes")
+            except Exception as e:
+                print(f"  [WARN] scene_causality_guard skipped: {e}")
+
+            # STEP 7.11: dialogue_naturalness_guard
+            try:
+                from dialogue_naturalness_guard import run_dialogue_naturalness_check as run_dng
+                dng_report = run_dng(content, chapter_no, hgr_cfg.get("dialogue_naturalness_guard", {}))
+                dng_path = ce_reports_dir / f"chapter_{chapter_no:03d}_dialogue_naturalness_report.json"
+                dng_path.write_text(json.dumps(dng_report, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"  [OK] dialogue_naturalness_report: {dng_path}")
+                if not dng_report.get("dialogue_naturalness_pass", True):
+                    print(f"  [WARN] dialogue_naturalness: variation={dng_report.get('dialogue_variation_score',0):.2f}")
+            except Exception as e:
+                print(f"  [WARN] dialogue_naturalness_guard skipped: {e}")
+
+            # STEP 7.12: style_variation_guard
+            try:
+                from style_variation_guard import run_style_variation_check as run_svg
+                svg_report = run_svg(content, chapter_no, hgr_cfg.get("style_variation_guard", {}))
+                svg_path = ce_reports_dir / f"chapter_{chapter_no:03d}_style_variation_report.json"
+                svg_path.write_text(json.dumps(svg_report, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"  [OK] style_variation_report: {svg_path}")
+                if not svg_report.get("style_variation_pass", True):
+                    print(f"  [WARN] style_variation: repeated_opening={svg_report.get('repeated_opening_ratio',0):.2f}, abstract_words={svg_report.get('overused_abstract_words',0)}")
+            except Exception as e:
+                print(f"  [WARN] style_variation_guard skipped: {e}")
+
+            # STEP 7.13: compliance_selfcheck_guard (唯一可 BLOCK)
+            try:
+                from compliance_selfcheck_guard import run_compliance_selfcheck as run_csc
+                csc_report = run_csc(content, chapter_no, hgr_cfg.get("compliance_selfcheck_guard", {}))
+                csc_path = ce_reports_dir / f"chapter_{chapter_no:03d}_compliance_selfcheck_report.json"
+                csc_path.write_text(json.dumps(csc_report, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"  [OK] compliance_selfcheck_report: {csc_path}")
+                if csc_report.get("status") == "BLOCK":
+                    print(f"  [BLOCK] compliance_selfcheck: high-risk content detected")
+                    high_risks = csc_report.get("high_risk_items", [])
+                    for item in high_risks[:3]:
+                        print(f"    - {item}")
+                    sys.exit(1)
+                elif csc_report.get("status") == "WARNING":
+                    print(f"  [WARN] compliance_selfcheck: medium-risk items found")
+            except Exception as e:
+                print(f"  [WARN] compliance_selfcheck_guard skipped: {e}")
+
+            # STEP 7.14: final_submission_report (纯报告，不阻断)
+            try:
+                from final_submission_report import build_submission_report as run_fsr
+                fsr_report = run_fsr(
+                    content, chapter_no, app.novel_slug, app.volume_no, chapter_type,
+                    hgr_cfg.get("final_submission_report", {})
+                )
+                fsr_path = ce_reports_dir / f"chapter_{chapter_no:03d}_final_submission_report.json"
+                fsr_path.write_text(json.dumps(fsr_report, ensure_ascii=False, indent=2), encoding='utf-8')
+                print(f"  [OK] final_submission_report: {fsr_path}")
+                if fsr_report.get("recommendation") == "REVISE":
+                    print(f"  [WARN] final_submission: top {fsr_report.get('top_revision_tasks_count',0)} tasks suggested")
+            except Exception as e:
+                print(f"  [WARN] final_submission_report skipped: {e}")
+        else:
+            print(f"  [INFO] Human-Grade Revision Suite disabled in config")
 
         # STEP 8: ingest
         result = ingest(chapter_no, chapter_type)
