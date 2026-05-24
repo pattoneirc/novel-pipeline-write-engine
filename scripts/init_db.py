@@ -24,7 +24,6 @@ def load_config(config_path=None):
 
 def find_schema(script_dir):
     """Find schema.sql relative to the project root"""
-    # Try relative to script directory
     candidates = [
         script_dir.parent / "database" / "schema.sql",
         script_dir.parent.parent / "database" / "schema.sql",
@@ -36,7 +35,50 @@ def find_schema(script_dir):
     return None
 
 
-def init_db(db_path, schema_path):
+def find_migrations(script_dir):
+    """Find migration SQL files"""
+    candidates = [
+        script_dir.parent / "database" / "migrations",
+        script_dir.parent.parent / "database" / "migrations",
+        Path("database/migrations"),
+    ]
+    for p in candidates:
+        if p.exists():
+            migrations = sorted(p.glob("*.sql"))
+            return [(m.name, m) for m in migrations]
+    return []
+
+
+def run_migrations(conn, migrations):
+    """Run pending migrations in order, tracking in schema_migrations."""
+    cur = conn.cursor()
+    # Ensure schema_migrations table exists (may have been created by migration itself)
+    cur.execute("CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT UNIQUE NOT NULL, applied_at TEXT DEFAULT (datetime('now')))")
+    conn.commit()
+
+    # Get already-applied migrations
+    cur.execute("SELECT filename FROM schema_migrations")
+    applied = {r[0] for r in cur.fetchall()}
+
+    for filename, filepath in migrations:
+        if filename in applied:
+            continue
+        print(f"  [MIG] {filename}...")
+        with open(filepath, 'r', encoding='utf-8') as f:
+            sql = f.read()
+        try:
+            conn.executescript(sql)
+            cur.execute("INSERT INTO schema_migrations(filename) VALUES(?)", (filename,))
+            conn.commit()
+            print(f"  [OK]  {filename}")
+        except Exception as e:
+            print(f"  [FAIL] {filename}: {e}")
+            conn.rollback()
+            return False
+    return True
+
+
+def init_db(db_path, schema_path, migrations):
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -45,11 +87,14 @@ def init_db(db_path, schema_path):
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
 
-        # Use executescript for full SQL file (handles multi-line statements)
         conn.executescript(schema_sql)
         conn.commit()
 
-        # Verify: list all tables (excluding FTS internal tables)
+        # Run migrations
+        if migrations:
+            run_migrations(conn, migrations)
+
+        # Verify
         cur = conn.cursor()
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '%_fts_%' ORDER BY name")
         tables = [r[0] for r in cur.fetchall()]
@@ -83,6 +128,7 @@ def main():
     db_path = cfg["db_path"]
     script_dir = Path(__file__).resolve().parent
     schema_path = find_schema(script_dir)
+    migrations = find_migrations(script_dir)
 
     if not schema_path:
         print(f"[FAIL] 找不到 database/schema.sql")
@@ -91,9 +137,11 @@ def main():
 
     print(f"数据库: {db_path}")
     print(f"Schema: {schema_path}")
+    if migrations:
+        print(f"Migrations: {len(migrations)} 个")
     print(f"初始化中...")
 
-    success = init_db(db_path, schema_path)
+    success = init_db(db_path, schema_path, migrations)
     sys.exit(0 if success else 1)
 
 

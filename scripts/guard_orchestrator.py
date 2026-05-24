@@ -181,7 +181,8 @@ def run_orchestrated(content: str, chapter_no: int, mode: str = "standard",
                      prev_tail: str = "", prev_brief: dict = None,
                      config: dict = None,
                      custom_guards: list[str] = None,
-                     reports_dir: str = "") -> dict:
+                     reports_dir: str = "",
+                     extra_context: dict = None) -> dict:
     """
     Orchestrate all guards — v0.4.5: delegates to guard_registry.
 
@@ -192,7 +193,7 @@ def run_orchestrated(content: str, chapter_no: int, mode: str = "standard",
     return _run(content, chapter_no, mode=mode,
                 prev_tail=prev_tail, prev_brief=prev_brief,
                 config=config, custom_guards=custom_guards,
-                reports_dir=reports_dir)
+                reports_dir=reports_dir, extra_context=extra_context)
 
 
 # ═══════════════════════════════════════════════════

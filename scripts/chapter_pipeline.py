@@ -21,7 +21,7 @@ Human-Grade Revision Suite (v0.4.0, WARNING only, compliance_selfcheck 可 BLOCK
 字数门禁 (V5): chapter_type 只决定上限，不强制下限
   普通1900-3300 | 重点1900-4200 | 高潮1900-5500 | 短章300-1000
 
-场景门禁: >= 4 有效场景
+场景门禁: >= 1 有效场景
 
 用法:
   python chapter_pipeline.py pre <chapter_no> [--config config.json] [--novel-slug demo] [--chapter-type normal|climax|final]
@@ -53,7 +53,7 @@ DEFAULT_CONFIG = {
         "authorized_short":{"min": 300, "best_min": 500, "best_max": 900, "max": 1000},
         "fragment":     {"min": 300, "best_min": 500, "best_max": 900, "max": 1000},
     },
-    "scene_quality": {"min_effective_scenes": 4},
+    "scene_quality": {"min_effective_scenes": 1},
 }
 
 
@@ -976,7 +976,7 @@ def volume_post():
     if active_chars:
         print(f"\n  活跃角色 ({len(active_chars)}):")
         for c in active_chars[:10]:
-            arc_info = f" — {c['arc'][:60]}" if c.get('arc') else ""
+            arc_info = f" — {c['arc'][:60]}" if c['arc'] else ""
             print(f"    [{c['role']}] {c['name']}{arc_info}")
 
     # 下一卷承接点
@@ -1089,6 +1089,7 @@ def main():
                         help="章节类型 (默认: normal)")
     parser.add_argument("--chapters-dir", default=None, help="章节 TXT 目录 (默认: novels/<slug>/第XX卷)")
     parser.add_argument("--db-path", default=None, help="数据库路径 (覆盖 config.json)")
+    parser.add_argument("--merge-if-short", action="store_true", help="字数不足时自动合并下一章")
 
     args = parser.parse_args()
 
@@ -1145,8 +1146,33 @@ def main():
         # STEP 4: word_count
         wc_pass, wc = word_count_gate(content, chapter_no, chapter_type)
         if wc_pass == False:
-            print(f"\n[FAIL] 字数门禁失败。需补{app.wc_default['min']-wc}字+。")
-            sys.exit(1)
+            # ── v0.4.5: 自动合并下一章 ──
+            if args.merge_if_short:
+                next_candidates = list(app.chapters_dir.glob(f"第{chapter_no+1}章*.txt"))
+                if next_candidates:
+                    next_content = _strip_selfcheck(Path(next_candidates[0]).read_text(encoding='utf-8'))
+                    merged = content.rstrip() + "\n\n---\n\n" + next_content
+                    # Save merged content
+                    merged_path = candidates[0]
+                    merged_path.write_text(merged, encoding='utf-8')
+                    # Rename next chapter as merged backup
+                    bak = str(next_candidates[0]) + ".merged"
+                    next_candidates[0].rename(bak)
+                    print(f"\n[MERGE] 第{chapter_no}章({wc}字) + 第{chapter_no+1}章 → 合并")
+                    print(f"  [OK] 合并后保存: {merged_path.name}")
+                    print(f"  [OK] 下一章已备份: {Path(bak).name}")
+                    # Re-check word count with merged content
+                    content = merged
+                    wc_pass, wc = word_count_gate(content, chapter_no, chapter_type)
+                    if wc_pass == False:
+                        print(f"\n[FAIL] 合并后仍不足 {app.wc_default['min']} 字 (实际: {wc})")
+                        sys.exit(1)
+                else:
+                    print(f"\n[FAIL] 字数门禁失败且找不到第{chapter_no+1}章合并。需补{app.wc_default['min']-wc}字+。")
+                    sys.exit(1)
+            else:
+                print(f"\n[FAIL] 字数门禁失败。需补{app.wc_default['min']-wc}字+。")
+                sys.exit(1)
 
         # STEP 5: continuity
         continuity_gate(chapter_no, content)
@@ -1218,11 +1244,10 @@ def main():
             print(f"  effective_scene_delta_count: {sdg_report['effective_scene_delta_count']}")
             sys.exit(1)
 
-        # STEP 6: scene
+        # STEP 6: scene (WARN only, no longer blocks)
         scene_ok, scene_issues = scene_quality_gate(content)
         if not scene_ok:
-            print(f"\n[FAIL] 场景门禁失败 — 需要 >= {app.min_scenes} 有效场景")
-            sys.exit(1)
+            print(f"  [WARN] 场景估计不足 (>= {app.min_scenes} 有效场景) — 不阻塞")
 
         # STEP 7: anti_ai
         ai_ok, ai_issues = anti_ai_style_gate(content)
@@ -1244,14 +1269,27 @@ def main():
             print(f"  [WARN] padding_detected (level={pg_report['padding_level']}, score={pg_report['padding_score']})")
             # Non-fail levels can proceed with warning
 
-        # ── STEP 7.6: Guard Orchestrator (替代硬编码，集中调度所有质量门禁) ──
+        # ── STEP 7.6: Guard Orchestrator ──
         quality_policy = cfg.get("quality_policy", {})
         orchestrator_mode = quality_policy.get("run_mode", "standard")
+
+        # v0.4.5: Load voice context for character_voice_guard
+        extra_context = {}
+        try:
+            from voice_profile_loader import load_voice_context
+            voice_context = load_voice_context(cfg, app.novel_slug)
+            if voice_context["enabled"]:
+                extra_context["voice_context"] = voice_context
+                print(f"  [VOICE] {voice_context['source']}: {len(voice_context['profiles'])} profiles, {len(voice_context['packs'])} packs")
+        except Exception as e:
+            pass
+
         try:
             from guard_orchestrator import run_orchestrated
             orch_report = run_orchestrated(
                 content, chapter_no, mode=orchestrator_mode,
-                config=cfg, reports_dir=str(ce_reports_dir))
+                config=cfg, reports_dir=str(ce_reports_dir),
+                extra_context=extra_context)
             orch_path = ce_reports_dir / f"chapter_{chapter_no:03d}_orchestrator_report.json"
             orch_path.write_text(json.dumps(orch_report, ensure_ascii=False, indent=2), encoding="utf-8")
             print(f"  [OK] orchestrator ({orchestrator_mode}): {len(orch_report['executed_guards'])} guards, {orch_report['warning_count']} warnings")

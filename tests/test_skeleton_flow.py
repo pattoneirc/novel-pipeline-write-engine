@@ -16,7 +16,7 @@ def db_and_app():
     db_path = Path(tmp) / "test.db"
     schema_path = Path(__file__).parent.parent / "database" / "schema.sql"
 
-    init_db.init_db(str(db_path), str(schema_path))
+    init_db.init_db(str(db_path), str(schema_path), [])
 
     # Import demo skeleton
     skeleton_path = Path(__file__).parent.parent / "examples" / "demo_novel" / "outline_skeleton.json"

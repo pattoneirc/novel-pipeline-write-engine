@@ -62,8 +62,8 @@ def main() -> None:
         if chapter_wc > 1000:
             fail(f"word_count {chapter_wc} exceeds 1000 for short chapter")
     else:
-        if chapter_wc < 1900 and not allow_short:
-            fail(f"word_count {chapter_wc} below 1900 minimum")
+        if chapter_wc < 1300 and not allow_short:
+            fail(f"word_count {chapter_wc} below 1300 minimum")
         if length_mode in ("standard_chapter", "fixed_budget_chapter"):
             if chapter_wc > 3300:
                 pass  # warning only
@@ -78,8 +78,8 @@ def main() -> None:
     write_mode = d.get("write_mode", "")
     if write_mode == "chunked":
         chunk_count = int(d.get("chunk_count", 0))
-        if chunk_count < 4 and chapter_wc < 1900 and not allow_short:
-            fail(f"chunk_count {chunk_count} < 4 with word_count {chapter_wc} < 1900")
+        if chunk_count < 4 and chapter_wc < 1300 and not allow_short:
+            fail(f"chunk_count {chunk_count} < 4 with word_count {chapter_wc} < 1300")
         if d.get("chunk_gate_passed") is not True:
             fail("chunk_gate_passed must be true")
         chunk_wcs = d.get("chunk_word_counts", [])

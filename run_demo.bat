@@ -13,6 +13,15 @@ if not exist config.json (
     exit /b 1
 )
 
+:: Import voice profiles (if available)
+echo [STEP 0] 导入角色声纹...
+if exist examples\demo_novel\voice_profiles.example.json (
+    python scripts/import_voice_profiles.py --config config.json --novel-slug demo_novel --input examples\demo_novel\voice_profiles.example.json 2>nul
+    echo [OK] 角色声纹已导入
+) else (
+    echo [INFO] 未找到 voice_profiles.example.json，跳过
+)
+
 :: Run pre for chapter 1
 echo [STEP 1] 写作前准备 (pre)...
 python scripts/chapter_pipeline.py pre 1 --config config.json --novel-slug demo_novel --volume-no 1

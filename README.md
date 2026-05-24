@@ -4,7 +4,7 @@
 
 AI 长篇小说工程化写作流水线：SQLite 长期记忆 + Guard Registry + 连续性证据 + 防幻觉 + 自动审稿闭环。
 
-> **当前稳定版：v0.4.5 — Guard Truth Source Fix。** 重点修复 post / orchestrator / CI 的 Guard 结果不一致问题，并增加 FTS5 自愈、叙事化证据识别、门禁统一摘要输出。37 个测试文件，252 个测试用例通过。
+> **当前稳定版：v0.4.5 — Guard Truth Source Fix。** 重点修复 post / orchestrator / CI 的 Guard 结果不一致问题，并增加 FTS5 自愈、叙事化证据识别、门禁统一摘要输出、Voice Memory Stage 1。37 个测试文件，264 个测试用例通过。
 
 ---
 

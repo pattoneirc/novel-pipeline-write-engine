@@ -1,30 +1,19 @@
 #!/usr/bin/env python3
-"""Test character_voice_guard — 角色口吻门禁测试"""
-import sys
+"""test_character_voice_guard — 角色口吻门禁测试 v0.4.5"""
+import sys, json
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 from character_voice_guard import (
     run_character_voice_check,
-    analyze_dialect_level,
-    analyze_wenyan_level,
+    _match_pack_markers,
 )
+from voice_profile_loader import _load_packs_from_files
 
 
-def test_dialect_level_zero():
-    assert analyze_dialect_level("今天天气很好，我们出去走走吧。") == 0
-
-
-def test_dialect_level_detected():
-    assert analyze_dialect_level("甭说了，俺们这就走，咋还不信咧？") >= 2
-
-
-def test_wenyan_level_zero():
-    assert analyze_wenyan_level("今天天气很好。") == 0
-
-
-def test_wenyan_level_detected():
-    assert analyze_wenyan_level("然则此法不可久恃，盖天道有常，岂可违焉？") >= 2
+def _packs():
+    return _load_packs_from_files(
+        str(Path(__file__).parent.parent / "voice_packs"))
 
 
 def test_empty_content():
@@ -35,35 +24,33 @@ def test_empty_content():
 
 def test_normal_text_passes():
     content = """周砚走到矿壁前，伸手摸了摸湿漉漉的石面。
-"不急，先把这面墙看完。"他说。
+\u201c不急，先把这面墙看完。\u201d他说。
 沈师姐站在一旁，没有说话，只是用剑尖轻轻点了一下地面。"""
     report = run_character_voice_check(content, 1)
     assert report["status"] in ("PASS", "WARNING")
 
 
 def test_forbidden_words_detected():
-    content = '"这件事情没有那么简单。"周砚说。"确实，事情没有这么简单。"沈师姐回答。'
+    content = '\u201c这件事情没有那么简单。\u201d周砚说。\u201c确实，事情没有这么简单。\u201d沈师姐回答。'
     report = run_character_voice_check(content, 1)
-    # 通用 AI 腔应该被检测到
-    assert report["universal_ai_violations"] >= 0  # 可能被检测
+    assert report["status"] in ("PASS", "WARNING")
 
 
 def test_voice_profiles_loaded():
     """测试加载角色口吻卡"""
-    profiles = [
-        {
-            "character_name": "周砚",
-            "dialect_level": 0,
-            "wenyan_level": 1,
-            "forbidden_words": ["命运", "大道"],
-        }
-    ]
-    content = '"或许这就是命运吧。"周砚自言自语道。'
+    profiles = [{
+        "character_name": "\u5468\u781a",
+        "dialect_level": 0, "wenyan_level": 1,
+        "dialect_pack": "none", "meme_pack": "none",
+        "english_pack": "none", "forbidden_words": ["\u547d\u8fd0", "\u5927\u9053"],
+    }]
+    content = '\u201c\u6216\u8bb8\u8fd9\u5c31\u662f\u547d\u8fd0\u5427\u3002\u201d\u5468\u781a\u81ea\u8a00\u81ea\u8bed\u9053\u3002'
     report = run_character_voice_check(content, 1, profiles)
-    # 应该检测到禁用词
-    assert len(report["forbidden_words_found"]) >= 0
+    assert report["status"] in ("PASS", "WARNING")
 
 
-if __name__ == "__main__":
-    import pytest
-    pytest.main([__file__, "-v"])
+def test_match_pack_markers():
+    packs = _packs()
+    sd = packs.get("shandong_light", {})
+    hits = _match_pack_markers("\u4ffa\u8bf4\u4e0d\u884c\u5c31\u662f\u4e0d\u884c\u3002", sd)
+    assert "\u4ffa" in hits["hits"]

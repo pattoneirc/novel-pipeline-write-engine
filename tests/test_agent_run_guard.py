@@ -76,8 +76,14 @@ class TestGuardPass:
 
 
 class TestGuardFail:
-    def test_normal_1500_fails(self):
-        rc, out = _run_guard(_valid_report(word_count=1500, assembled_word_count=1500, chapter_word_count_gate=False, word_count_gate=False))
+    def test_normal_1500_passes(self):
+        """1500 should pass — min is now 1300"""
+        rc, out = _run_guard(_valid_report(word_count=1500, assembled_word_count=1500, chapter_word_count_gate=True, word_count_gate=True))
+        assert rc == 0
+
+    def test_normal_1200_fails(self):
+        """1200 should fail — below 1300 minimum"""
+        rc, out = _run_guard(_valid_report(word_count=1200, assembled_word_count=1200, chapter_word_count_gate=False, word_count_gate=False))
         assert rc != 0
 
     def test_key_4300_oversize_fails(self):

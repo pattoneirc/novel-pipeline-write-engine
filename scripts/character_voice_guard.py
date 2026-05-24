@@ -1,60 +1,46 @@
 #!/usr/bin/env python3
 """
-character_voice_guard.py — 角色口吻门禁 v0.3.1-qgp
+character_voice_guard.py — 角色口吻门禁 v0.4.5
 
-检查：
-1. 每个角色对白是否符合 voice_profile
-2. 是否所有角色都像同一个人
-3. 是否使用了禁用词
-4. 方言浓度是否超标
-5. 文言浓度是否适合角色身份
-6. 关键剧情句是否可读
+多语体检测：
+1. 方言检测（按 pack 分治：山东/关中/晋地/东北/中原/川渝）
+2. 网络梗检测（轻梗 + 禁用梗）
+3. 英语检测（技术英语 + 禁用日常英语）
+4. 角色错口吻检测（林观澜说方言、魂主说梗等）
+5. 缺失声纹检测（角色有对白但无声纹特征）
+6. 旁白污染检测（方言/梗/英语进入旁白）
 
-策略: Phase 2 — 先 WARNING，不 FAIL
+策略: WARNING only, 不 FAIL
 """
+
 import re, json, sys, argparse
 from pathlib import Path
+from typing import Optional
 
 # ═══════════════════════════════════════════════════
-# 方言/文言检测
+# 对白提取 — 使用中文引号 \u201c\u201d 和 \u300c\u300d
 # ═══════════════════════════════════════════════════
 
-DIALECT_MARKERS = re.compile(
-    r'(甭|俺|咋|啥|嘛|哩|咧|呗|嘛|啷个|么子|咋个|这旮沓|那旮沓|搁这儿|搁那儿'
-    r'|俺们|你们|咱|恁|弄啥|中不中|得劲|忒|贼|老|忒|嘛事|啥子|哪个|啷个办)'
+LQ = "\u201c"
+RQ = "\u201d"
+LJ = "\u300c"
+RJ = "\u300d"
+DIALOGUE_PATTERN = re.compile(f"[{LQ}{RQ}{LJ}{RJ}]([^{LQ}{RQ}{LJ}{RJ}]{{5,200}})[{LQ}{RQ}{LJ}{RJ}]")
+SPEAKER_PATTERN = re.compile(
+    r'(周砚|沈|林|管事|矿头|老矿头|师尊|长老|韩烈|马瘸子|小五|刘三|周旺|'
+    r'顾长庚|赵管事|罗千钧|齐岳|宋炉公|魂主|周不器|沈青霜|林观澜)[说问道：:]'
 )
-
-WENYAN_MARKERS = re.compile(
-    r'(然则|夫|盖.{0,3}(也|矣|焉|耳|乎|哉|邪|与)|者.{0,3}也'
-    r'|岂不|莫不|未尝|遂|乃|辄|竟|盖|故|是以|是故|由此|因而'
-    r'|呜呼|噫|吁|嗟乎|悲夫|矣|焉|耳|乎|哉|之乎者也)'
-)
-
-FORBIDDEN_UNIVERSAL = re.compile(
-    r'(这件事情没有那么简单|事情.{0,5}没有那么简单'
-    r'|事情变得.{0,5}复杂|事情远比.{0,5}复杂'
-    r'|事情.{0,5}不简单|事情.{0,5}没那么简单)'
-)
-
-# ═══════════════════════════════════════════════════
-# 对白提取
-# ═══════════════════════════════════════════════════
-
-DIALOGUE_PATTERN = re.compile(r'[""「」]([^""「」]{5,200})[""「」]')
-SPEAKER_PATTERN = re.compile(r'(周砚|沈|林|管事|矿头|老矿头|师尊|长老)[说问道：:]')
 
 
 def extract_dialogues(content):
     """提取所有对白，尝试绑定说话者"""
     dialogues = []
-    # 匹配引号内容
-    for m in re.finditer(r'[""「」]([^""「」]{5,200})[""「」]', content):
+    for m in DIALOGUE_PATTERN.finditer(content):
         text = m.group(1)
         start = max(0, m.start() - 30)
         context = content[start:m.start()]
-        # 尝试识别说话者
         speaker_match = SPEAKER_PATTERN.search(context)
-        speaker = speaker_match.group(1) if speaker_match else "未知"
+        speaker = speaker_match.group(1) if speaker_match else "\u672a\u77e5"
         dialogues.append({
             "text": text,
             "speaker": speaker,
@@ -64,55 +50,179 @@ def extract_dialogues(content):
     return dialogues
 
 
-def analyze_dialect_level(text):
-    """计算方言浓度 (0-5)"""
-    matches = DIALECT_MARKERS.findall(text)
-    return min(5, len(matches))
+def extract_narration(content):
+    """提取旁白（去掉对白）"""
+    return re.sub(f"[{LQ}{RQ}{LJ}{RJ}][^{LQ}{RQ}{LJ}{RJ}]+[{LQ}{RQ}{LJ}{RJ}]", '', content)
 
 
-def analyze_wenyan_level(text):
-    """计算文言浓度 (0-5)"""
-    matches = WENYAN_MARKERS.findall(text)
-    return min(5, len(matches) * 2)
+# ═══════════════════════════════════════════════════
+# 多语体检测
+# ═══════════════════════════════════════════════════
+
+def _match_pack_markers(text, pack):
+    if not pack:
+        return {"hits": [], "soft_hits": [], "danger_hits": []}
+    markers = pack.get("markers", [])
+    soft = pack.get("soft_markers", [])
+    danger = pack.get("danger_markers", [])
+    return {
+        "hits": [m for m in markers if m in text],
+        "soft_hits": [m for m in soft if m in text],
+        "danger_hits": [m for m in danger if m in text],
+    }
 
 
-def check_forbidden_words(text, profile):
-    """检查禁用词"""
+def check_speaker_against_packs(combined_text, profile, packs):
+    """Check one speaker's dialogue against voice packs and profile."""
+    result = {
+        "speaker": profile.get("character_name", "\u672a\u77e5"),
+        "dialogue_count": 0,
+        "profile_found": bool(profile),
+        "expected_dialect": profile.get("dialect_pack", "none"),
+        "dialect_hits": [],
+        "unexpected_dialect_hits": [],
+        "meme_hits": [],
+        "banned_meme_hits": [],
+        "english_hits": [],
+        "banned_english_hits": [],
+        "forbidden_hits": [],
+        "missing_signature": False,
+        "warnings": [],
+    }
+
+    dialect_pack_id = profile.get("dialect_pack", "none")
+    dialect_level = profile.get("dialect_level", 0)
+
+    if dialect_pack_id != "none" and dialect_pack_id in packs:
+        hits = _match_pack_markers(combined_text, packs[dialect_pack_id])
+        result["dialect_hits"] = hits["hits"]
+
+    expected_markers = set()
+    if dialect_pack_id != "none" and dialect_pack_id in packs:
+        expected_markers = set(packs[dialect_pack_id].get("markers", []))
+    for pid, pack in packs.items():
+        if pack.get("type") != "dialect":
+            continue
+        if pid == dialect_pack_id:
+            continue
+        hits = _match_pack_markers(combined_text, pack)
+        unique_hits = [h for h in hits["hits"] if h not in expected_markers]
+        if unique_hits:
+            result["unexpected_dialect_hits"].extend(f"{pid}:{h}" for h in unique_hits)
+
+    if dialect_level > 0 and not result["dialect_hits"] and not result["unexpected_dialect_hits"]:
+        result["missing_signature"] = True
+        result["warnings"].append(f"\u5e94\u4e3a{dialect_pack_id}\u58f0\u7eb9\uff0c\u4f46\u672a\u68c0\u6d4b\u5230")
+
+    banned_meme = packs.get("banned_memes", {})
+    bh = _match_pack_markers(combined_text, banned_meme)
+    if bh["danger_hits"]:
+        result["banned_meme_hits"] = bh["danger_hits"]
+        result["warnings"].append(f"\u7981\u7528\u7f51\u7edc\u6897: {', '.join(bh['danger_hits'])}")
+
+    meme_pack_id = profile.get("meme_pack", "none")
+    light_meme = packs.get("light_net_meme", {})
+    if meme_pack_id != "none" and meme_pack_id in packs:
+        mh = _match_pack_markers(combined_text, packs[meme_pack_id])
+        result["meme_hits"] = mh["hits"]
+        threshold = packs[meme_pack_id].get("overuse_warning_threshold", 5)
+        if len(mh["hits"]) > threshold:
+            result["warnings"].append(f"\u7f51\u7edc\u6897\u8d85\u6807 ({len(mh['hits'])} > {threshold})")
+    elif meme_pack_id == "none":
+        lh = _match_pack_markers(combined_text, light_meme)
+        if lh["hits"]:
+            result["meme_hits"] = lh["hits"]
+            result["warnings"].append(f"\u4e0d\u5e94\u4f7f\u7528\u7f51\u7edc\u6897: {', '.join(lh['hits'])}")
+
+    banned_eng = packs.get("banned_english", {})
+    beh = _match_pack_markers(combined_text, banned_eng)
+    if beh["danger_hits"]:
+        result["banned_english_hits"] = beh["danger_hits"]
+        result["warnings"].append(f"\u7981\u7528\u82f1\u8bed: {', '.join(beh['danger_hits'])}")
+
+    eng_pack_id = profile.get("english_pack", "none")
+    if eng_pack_id != "none" and eng_pack_id in packs:
+        eh = _match_pack_markers(combined_text, packs[eng_pack_id])
+        result["english_hits"] = eh["hits"]
+    elif eng_pack_id == "none":
+        eng_words = re.findall(r'\b[a-zA-Z]{2,15}\b', combined_text)
+        if eng_words:
+            suspicious = [w for w in eng_words if w.lower() not in
+                          ("a", "an", "the", "is", "in", "on", "at", "to", "of")]
+            if suspicious:
+                result["english_hits"] = suspicious[:5]
+
     forbidden = profile.get("forbidden_words", [])
-    found = []
-    for word in forbidden:
-        if word in text:
-            found.append(word)
-    return found
+    result["forbidden_hits"] = [w for w in forbidden if w in combined_text]
+    if result["forbidden_hits"]:
+        result["warnings"].append(f"\u7981\u7528\u8bcd: {', '.join(result['forbidden_hits'])}")
+
+    return result
 
 
-def check_universal_forbidden(dialogues):
-    """检查所有角色是否说了同一句 AI 腔"""
-    universal_found = []
-    for d in dialogues:
-        if FORBIDDEN_UNIVERSAL.search(d["text"]):
-            universal_found.append({
-                "speaker": d["speaker"],
-                "text": d["text"][:60]
-            })
-    return universal_found
+def check_narration_pollution(narration, packs, policy):
+    result = {"dialect_hits": [], "meme_hits": [], "english_hits": [], "warnings": []}
+    max_dialect = policy.get("dialect_level", 0)
+    max_meme = policy.get("meme_level", 0)
+    max_english = policy.get("english_level", 0)
+
+    for pid, pack in packs.items():
+        if pack.get("type") != "dialect":
+            continue
+        hits = _match_pack_markers(narration, pack)
+        if hits["hits"]:
+            result["dialect_hits"].extend(f"{pid}:{h}" for h in hits["hits"])
+    if result["dialect_hits"] and max_dialect == 0:
+        result["warnings"].append(f"\u65c1\u767d\u51fa\u73b0\u65b9\u8a00: {', '.join(result['dialect_hits'][:5])}")
+
+    for pid in ("light_net_meme", "banned_memes"):
+        pack = packs.get(pid)
+        if not pack:
+            continue
+        hits = _match_pack_markers(narration, pack)
+        all_hits = hits["hits"] + hits["danger_hits"]
+        if all_hits:
+            result["meme_hits"].extend(all_hits)
+    if result["meme_hits"] and max_meme == 0:
+        result["warnings"].append(f"\u65c1\u767d\u51fa\u73b0\u7f51\u7edc\u6897: {', '.join(result['meme_hits'][:5])}")
+
+    banned_eng = packs.get("banned_english", {})
+    beh = _match_pack_markers(narration, banned_eng)
+    if beh["danger_hits"]:
+        result["english_hits"] = beh["danger_hits"]
+    if result["english_hits"] and max_english == 0:
+        result["warnings"].append(f"\u65c1\u767d\u51fa\u73b0\u82f1\u8bed: {', '.join(result['english_hits'][:5])}")
+
+    return result
 
 
 # ═══════════════════════════════════════════════════
-# 主入口
+# 主入口 (v0.4.5 扩展)
 # ═══════════════════════════════════════════════════
 
-def run_character_voice_check(content, chapter_no, voice_profiles=None):
-    """主入口"""
+def run_character_voice_check(
+    content,
+    chapter_no=0,
+    voice_profiles=None,
+    voice_packs=None,
+    narration_policy=None,
+    mode="warning",
+):
     voice_profiles = voice_profiles or []
+    voice_packs = voice_packs or {}
+    narration_policy = narration_policy or {
+        "dialect_level": 0, "meme_level": 0, "english_level": 0, "wenyan_level": 1
+    }
+
     dialogues = extract_dialogues(content)
-    narration = re.sub(r'[""「」][^""「」]+[""「」]', '', content)
+    narration = extract_narration(content)
 
-    # ── 1. 旁白方言/文言检查 ──
-    narration_dialect = analyze_dialect_level(narration)
-    narration_wenyan = analyze_wenyan_level(narration)
+    profile_map = {}
+    for p in voice_profiles:
+        name = p.get("character_name", "")
+        if name:
+            profile_map[name] = p
 
-    # ── 2. 角色对白检查 ──
     speaker_dialogues = {}
     for d in dialogues:
         s = d["speaker"]
@@ -120,108 +230,97 @@ def run_character_voice_check(content, chapter_no, voice_profiles=None):
             speaker_dialogues[s] = []
         speaker_dialogues[s].append(d)
 
-    voice_warnings = []
-    voice_violations = []
-    dialect_by_speaker = {}
-    wenyan_by_speaker = {}
-    forbidden_found = []
-
-    # 加载 profile
-    profile_map = {}
-    for p in voice_profiles:
-        profile_map[p.get("character_name", "")] = p
+    speaker_reports = []
+    all_warnings = []
 
     for speaker, dls in speaker_dialogues.items():
         combined = " ".join(d["text"] for d in dls)
-        d_level = analyze_dialect_level(combined)
-        w_level = analyze_wenyan_level(combined)
-        dialect_by_speaker[speaker] = d_level
-        wenyan_by_speaker[speaker] = w_level
+        profile = profile_map.get(speaker, {
+            "character_name": speaker,
+            "dialect_pack": "none", "register_pack": "none",
+            "meme_pack": "none", "english_pack": "none",
+            "dialect_level": 0, "meme_level": 0, "english_level": 0,
+            "forbidden_words": [],
+        })
+        profile["character_name"] = speaker
 
-        profile = profile_map.get(speaker, {})
-        max_dialect = profile.get("dialect_level", 2)
-        max_wenyan = profile.get("wenyan_level", 1)
+        sr = check_speaker_against_packs(combined, profile, voice_packs)
+        sr["dialogue_count"] = len(dls)
+        speaker_reports.append(sr)
+        if sr["warnings"]:
+            all_warnings.append(f"[{speaker}] {'; '.join(sr['warnings'])}")
 
-        if d_level > max_dialect + 1:
-            voice_warnings.append(f"[{speaker}] 方言浓度 {d_level} 超出设定 {max_dialect}")
-        if w_level > max_wenyan + 1:
-            voice_warnings.append(f"[{speaker}] 文言浓度 {w_level} 超出设定 {max_wenyan}")
+    narration_report = check_narration_pollution(narration, voice_packs, narration_policy)
+    if narration_report["warnings"]:
+        all_warnings.extend(narration_report["warnings"])
 
-        fw = check_forbidden_words(combined, profile)
-        if fw:
-            forbidden_found.append({"speaker": speaker, "words": fw})
-            voice_violations.append(f"[{speaker}] 使用禁用词: {', '.join(fw)}")
+    status = "WARNING" if all_warnings else "PASS"
 
-    # ── 3. 通用 AI 腔检查 ──
-    universal_violations = check_universal_forbidden(dialogues)
-    if universal_violations:
-        for v in universal_violations:
-            voice_violations.append(f"AI腔: [{v['speaker']}] '{v['text']}'")
-
-    # ── 4. 旁白方言检查 ──
-    if narration_dialect > 0:
-        voice_warnings.append(f"旁白方言浓度 {narration_dialect}（应为 0）")
-
-    # ── 5. 裁决 (Phase 2: 只有严重违规才 FAIL，其他 WARNING) ──
-    critical_violations = len(voice_violations)
-    passed = critical_violations == 0
-
-    # 一致性得分
-    if len(speaker_dialogues) >= 2:
-        dialect_values = list(dialect_by_speaker.values())
-        wenyan_values = list(wenyan_by_speaker.values())
-        voice_consistency = 1.0 - (max(dialect_values) - min(dialect_values)) / 5.0 if dialect_values else 1.0
-        dialogue_similarity = 0.0  # simplified
-    else:
-        voice_consistency = 1.0
-        dialogue_similarity = 0.0
-
-    report = {
-        "status": "PASS" if passed else "WARNING",
-        "final_decision": "PASS" if passed else "WARNING",
+    return {
+        "guard": "character_voice_guard",
+        "version": "v0.4.5",
+        "status": status,
+        "final_decision": status,
         "chapter_no": chapter_no,
-        "voice_consistency_score": round(voice_consistency, 2),
-        "dialogue_similarity_score": dialogue_similarity,
-        "dialect_density": dialect_by_speaker,
-        "wenyan_density": wenyan_by_speaker,
-        "forbidden_words_found": forbidden_found,
-        "universal_ai_violations": len(universal_violations),
-        "narration_dialect_level": narration_dialect,
-        "narration_wenyan_level": narration_wenyan,
-        "speaker_count": len(speaker_dialogues),
         "total_dialogues": len(dialogues),
-        "violations": voice_violations,
-        "warnings": voice_warnings,
-        "character_voice_pass": passed,
+        "speaker_count": len(speaker_dialogues),
+        "speaker_reports": speaker_reports,
+        "narration_report": narration_report,
+        "voice_memory_observations": [
+            {
+                "speaker": sr["speaker"],
+                "warnings": sr["warnings"],
+                "dialect_hits": sr["dialect_hits"],
+                "meme_hits": sr["meme_hits"] + sr["banned_meme_hits"],
+                "english_hits": sr["english_hits"] + sr["banned_english_hits"],
+                "forbidden_hits": sr["forbidden_hits"],
+            }
+            for sr in speaker_reports if sr["warnings"]
+        ],
+        "warnings": all_warnings,
+        "violations": all_warnings,
+        "character_voice_pass": len(all_warnings) == 0,
     }
 
-    return report
 
+# ═══════════════════════════════════════════════════
+# CLI
+# ═══════════════════════════════════════════════════
 
 def main():
     parser = argparse.ArgumentParser(description="Character Voice Guard")
     parser.add_argument("content_file", help="章节 TXT 文件")
     parser.add_argument("--chapter-no", type=int, default=1)
-    parser.add_argument("--voice-profiles", default=None, help="角色口吻卡 JSON 文件")
+    parser.add_argument("--voice-profiles", default=None)
+    parser.add_argument("--voice-packs-dir", default=None)
     parser.add_argument("--output", default=None)
     args = parser.parse_args()
 
     content = Path(args.content_file).read_text(encoding="utf-8")
-
-    voice_profiles = []
+    vp = []
     if args.voice_profiles and Path(args.voice_profiles).exists():
-        voice_profiles = json.loads(Path(args.voice_profiles).read_text(encoding="utf-8"))
-
-    report = run_character_voice_check(content, args.chapter_no, voice_profiles)
-
+        vp = json.loads(Path(args.voice_profiles).read_text(encoding="utf-8"))
+    packs = {}
+    if args.voice_packs_dir:
+        for fp in sorted(Path(args.voice_packs_dir).rglob("*.json")):
+            try:
+                d = json.loads(fp.read_text(encoding="utf-8"))
+                packs[d.get("pack_id", fp.stem)] = {
+                    "pack_id": d.get("pack_id"), "type": d.get("type", ""),
+                    "markers": d.get("markers", []),
+                    "soft_markers": d.get("soft_markers", []),
+                    "danger_markers": d.get("danger_markers", []),
+                    "overuse_warning_threshold": d.get("overuse_warning_threshold", 5),
+                }
+            except Exception:
+                pass
+    report = run_character_voice_check(content, args.chapter_no, vp, packs)
     print(json.dumps(report, ensure_ascii=False, indent=2))
-
     if args.output:
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.output).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    if not report["character_voice_pass"]:
-        print(f"\n[WARN] Character voice check: {len(report['violations'])} violations")
+        p = Path(args.output); p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    if report["status"] == "WARNING":
+        print(f"\n[WARN] Character voice: {len(report['warnings'])} issues")
     else:
         print(f"\n[OK] Character voice check passed")
 

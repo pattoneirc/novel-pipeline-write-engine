@@ -41,7 +41,7 @@ def e2e_env():
 
     # Init DB
     schema = Path(__file__).parent.parent / "database" / "schema.sql"
-    init_db.init_db(cfg["db_path"], str(schema))
+    init_db.init_db(cfg["db_path"], str(schema), [])
 
     # Import skeleton
     skeleton_path = Path(__file__).parent.parent / "examples" / "demo_novel" / "outline_skeleton.json"

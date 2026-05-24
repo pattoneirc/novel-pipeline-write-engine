@@ -183,7 +183,8 @@ def _adapt_legacy_dict(guard_name: str, raw: dict) -> GuardResult:
 
 def run_single_guard(guard_name: str, content: str, chapter_no: int,
                      prev_tail: str = "", prev_brief: dict = None,
-                     chapter_type: str = "normal") -> Optional[GuardResult]:
+                     chapter_type: str = "normal",
+                     extra_context: dict = None) -> Optional[GuardResult]:
     """Run ONE guard and return a GuardResult. THE canonical entry point."""
     import importlib
 
@@ -207,6 +208,15 @@ def run_single_guard(guard_name: str, content: str, chapter_no: int,
             raw = fn(content, chapter_type)
         elif guard_name in chapter_first_guards:
             raw = fn(chapter_no, content)
+        elif guard_name == "character_voice_guard" and extra_context:
+            # v0.4.5: pass voice_context to character_voice_guard
+            vc = extra_context.get("voice_context", {})
+            raw = fn(
+                content, chapter_no,
+                voice_profiles=vc.get("profiles"),
+                voice_packs=vc.get("packs"),
+                narration_policy=vc.get("narration_policy"),
+            )
         else:
             raw = fn(content, chapter_no)
 
@@ -243,7 +253,8 @@ def run_standard_guards(content: str, chapter_no: int,
                         chapter_type: str = "normal",
                         reports_dir: str = "",
                         config: dict = None,
-                        custom_guards: list[str] = None) -> GuardSummary:
+                        custom_guards: list[str] = None,
+                        extra_context: dict = None) -> GuardSummary:
     """
     Run all guards for a chapter in the given mode.
     Returns a GuardSummary — THE single truth source for this chapter's guard results.
@@ -270,7 +281,8 @@ def run_standard_guards(content: str, chapter_no: int,
 
     for guard_name in guard_names:
         result = run_single_guard(guard_name, content, chapter_no,
-                                  prev_tail, prev_brief, chapter_type)
+                                  prev_tail, prev_brief, chapter_type,
+                                  extra_context=extra_context)
         if result is None:
             summary.skipped_guards.append(guard_name)
             continue
@@ -300,7 +312,8 @@ def run_orchestrated(content: str, chapter_no: int, mode: str = "standard",
                      prev_tail: str = "", prev_brief: dict = None,
                      config: dict = None,
                      custom_guards: list[str] = None,
-                     reports_dir: str = "") -> dict:
+                     reports_dir: str = "",
+                     extra_context: dict = None) -> dict:
     """
     Legacy-compatible wrapper around run_standard_guards.
     Returns the old dict format so existing code in chapter_pipeline.py
@@ -315,7 +328,8 @@ def run_orchestrated(content: str, chapter_no: int, mode: str = "standard",
         content=content, chapter_no=chapter_no, mode=mode,
         prev_tail=prev_tail, prev_brief=prev_brief,
         chapter_type=chapter_type, reports_dir=reports_dir,
-        config=config, custom_guards=custom_guards)
+        config=config, custom_guards=custom_guards,
+        extra_context=extra_context)
 
     # Convert to legacy dict format
     return {

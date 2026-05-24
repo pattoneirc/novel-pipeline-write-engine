@@ -16,7 +16,7 @@ class TestSchemaInit:
             db_path = Path(tmp) / "test.db"
             schema_path = Path(__file__).parent.parent / "database" / "schema.sql"
 
-            result = init_db.init_db(str(db_path), str(schema_path))
+            result = init_db.init_db(str(db_path), str(schema_path), [])
             assert result == True
             assert db_path.exists()
             assert db_path.stat().st_size > 0
@@ -28,7 +28,7 @@ class TestSchemaInit:
             db_path = Path(tmp) / "test.db"
             schema_path = Path(__file__).parent.parent / "database" / "schema.sql"
 
-            init_db.init_db(str(db_path), str(schema_path))
+            init_db.init_db(str(db_path), str(schema_path), [])
 
             conn = sqlite3.connect(str(db_path))
             cur = conn.cursor()

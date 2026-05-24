@@ -48,6 +48,11 @@ echo [INFO] 导入 Demo 标题骨架...
 python scripts/import_outline_skeleton.py --config config.json --input examples/demo_novel/outline_skeleton.json 2>nul
 echo [OK] Demo 骨架已导入
 
+:: Import voice packs
+echo [INFO] 导入声纹包...
+python scripts/import_voice_packs.py --config config.json --input-dir voice_packs 2>nul
+echo [OK] 声纹包已导入
+
 :: Run doctor
 echo [INFO] 运行环境检查...
 python scripts/doctor.py 2>nul
