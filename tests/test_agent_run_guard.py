@@ -13,8 +13,18 @@ def _run_guard(report_dict):
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
         json.dump(report_dict, f)
         tmp = f.name
+    # Create a temp guard_summary.json that the guard can read
+    gs_path = report_dict.get("guard_summary_path", "")
+    if gs_path:
+        gs_dir = os.path.dirname(gs_path)
+        if gs_dir:
+            os.makedirs(gs_dir, exist_ok=True)
+        with open(gs_path, 'w', encoding='utf-8') as gs:
+            json.dump({"overall_status": "PASS", "chapter_no": report_dict.get("chapter_no", 1)}, gs)
     result = subprocess.run([sys.executable, str(GUARD_SCRIPT), tmp], capture_output=True, text=True)
     Path(tmp).unlink()
+    if gs_path and os.path.exists(gs_path):
+        os.remove(gs_path)
     return result.returncode, result.stdout
 
 
@@ -42,7 +52,8 @@ def _valid_report(**overrides):
         "canon_evidence_map_path": "exports/demo/evidence/ch_001_canon.json",
         "evidence_coverage": 1.0, "hard_claims_without_source": 0,
         "execution_receipt_path": "exports/demo/receipts/ch_001_receipt.json",
-        "execution_receipt_verified": True, "volume_no": 1
+        "execution_receipt_verified": True, "volume_no": 1,
+        "guard_summary_path": "exports/demo/reports/ch_001_guard_summary.json"
     }
     base.update(overrides)
     return base
