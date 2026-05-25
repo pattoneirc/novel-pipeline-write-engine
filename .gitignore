@@ -34,14 +34,17 @@ Thumbs.db
 config.json
 
 # Runtime data
+.pytest_cache/
 data/
 
 # Novel content (user's own work)
 novels/
 小说/
 
+# Generated output
 tmp/
 *.tmp
 *.log
 outputs/
+reports/
 examples/novels/
