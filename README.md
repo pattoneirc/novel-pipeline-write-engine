@@ -37,10 +37,9 @@ v0.5.0 是一次稳定易用性升级：
 - **5 种题材模板**：修仙/都市/规则怪谈/悬疑/科幻
 - **Windows 一键体验**：`install.bat` → `run_demo.bat` → `run_report.bat`
 
-<details>
-<summary>📜 历史版本亮点</summary>
+### 历史版本亮点
 
-v0.4.5 是一次门禁可信度修复版：
+v0.4.5 门禁可信度修复版：
 
 | 模块 | 修复方向 |
 |------|----------|
@@ -53,8 +52,6 @@ v0.4.5 是一次门禁可信度修复版：
 | anti_ai | 统一正则与句式检测入口 |
 | path_resolver | 降低 novels_root / slug / 卷目录强耦合 |
 | title policy | 标题变化只记录，不擅自改写用户标题 |
-
-</details>
 
 ---
 
