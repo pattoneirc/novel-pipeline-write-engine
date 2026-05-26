@@ -1,0 +1,31 @@
+# jury.default.yaml — 轻量评审团模式（默认）
+# 8 个核心代理，快速审查，适合日常章节审阅
+
+name: "轻量评审团"
+mode: light
+description: >
+  8 个核心评审代理，每个代理关注一个关键维度。
+  适合每日写作后的快速质量检查，运行时间短，反馈快。
+
+agents:
+  - continuity          # 连续性检查
+  - character_voice     # 角色声线
+  - plot_logic          # 情节逻辑
+  - worldbuilding       # 世界观一致性
+  - anti_padding        # 反灌水
+  - ai_style            # AI味儿检测
+  - genre               # 类型合规
+  - reader_hook         # 读者钩子
+
+settings:
+  min_score_pass: 60          # 综合评分低于此视为不通过
+  single_agent_fail_threshold: 40   # 单个代理评分低于此触发警告
+  max_issues_per_agent: 10    # 每个代理最多报告的问题数
+  concurrent: true            # 是否并行运行代理
+  timeout_seconds: 120        # 总超时时间
+
+report:
+  format: json
+  include_scores: true
+  include_suggestions: true
+  output_dir: "./exports/reports/jury/"

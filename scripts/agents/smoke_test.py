@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Smoke test for multi-agent review board system."""
-import sys, json
-sys.path.insert(0, r"D:\DSJ\novel-pipeline-write-engine")
+import sys, json, os
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 from scripts.agents.base_agent import BaseAgent
 from scripts.agents.context_agent import ContextAgent
@@ -157,7 +160,7 @@ print(f"  must_fix={result['summary']['must_fix_count']} "
 
 # Test 5: Report persisted
 import os
-report_dir = r"D:\DSJ\novel-pipeline-write-engine\reports\agent_reviews"
+report_dir = str(PROJECT_ROOT / "exports" / "reports" / "agent_reviews")
 report_file = os.path.join(report_dir, "chapter_002_agent_review.json")
 print(f"\n  Report saved: {os.path.exists(report_file)} → {report_file}")
 

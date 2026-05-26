@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.6.2 - Cross-Platform Release (2026-05-27)
+
+- 版本号统一至 v0.6.2 (VERSION / version.py / novel.py / README.md / config.example.json)
+- 修复硬编码 Windows 路径：smoke_test.py 使用 Path(__file__).parents[2] 动态解析；fts_health.py 使用配置驱动路径
+- 统一 Shell 脚本 Python 检测模式：支持 venv 自动激活、$PYTHON 变量、可执行权限
+- 新增 scripts/cross_platform_check.py 跨平台自检工具（平台/版本/SQLite FTS5/路径/脚本）
+- README 增加 Windows/macOS/Linux 三平台安装说明
+
+## v0.6.1 - Clean Release (2026-05-26)
+
+- 版本号统一至 v0.6.1 (VERSION / version.py / novel.py / README.md)
+- 从 Git 追踪中移除 .story/ 目录（运行时状态，非源码）
+- Demo 输出顺序修复：所有子进程调用前添加 flush=True，使用 capture_output=True
+- wc 命令支持章节号：`python novel.py wc 1` 自动解析到章节文件路径
+- check 命令帮助文本修正：移除 "v0.5.0" 引用
+- query 命令显示合同详情：开放伏笔数、禁止变更项、活跃角色数
+- story health 三档输出：OK / WARN / FAIL（空合同字段→WARN，缺提交→WARN，word_count≤0→FAIL）
+- README 当前版本更新至 v0.6.1，CHANGELOG 添加本条目
+
 ## v0.6.0 - Story Contract CLI Release (2026-05-26)
 
 - 新增 Story Contract 命令组：story init / contract / commit / health

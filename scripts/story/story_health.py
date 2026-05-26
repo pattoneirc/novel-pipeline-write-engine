@@ -1,4 +1,4 @@
-"""/story/health — Check story chain health."""
+"""/story/health — Check story chain health (three-tier: OK / WARN / FAIL)."""
 import json
 from pathlib import Path
 from typing import List
@@ -7,26 +7,35 @@ STORY_DIR = ".story"
 
 
 def check_health(project_root: Path) -> dict:
-    """Run story health checks and return report."""
+    """Run story health checks and return report with three-tier status.
+
+    Tier rules:
+      - word_count <= 0  →  FAIL
+      - empty contract fields  →  WARN
+      - missing commit  →  WARN
+    """
     story = project_root / STORY_DIR
-    issues = []
-    ok = True
+    warnings = []
+    failures = []
 
     # Check story dir exists
     if not story.exists():
-        return {"ok": False, "issues": ["Story directory not initialized. Run: python novel.py story init"]}
+        return {
+            "status": "FAIL",
+            "story_dir": str(story),
+            "issues": ["Story directory not initialized. Run: python novel.py story init"],
+        }
 
     # Check master setting
     ms = story / "master_setting.json"
     if not ms.exists():
-        issues.append("master_setting.json missing")
-        ok = False
+        warnings.append("master_setting.json missing")
 
     # Check memory files
     memory = story / "memory"
     for fname in ["characters.json", "promises.json", "world_facts.json"]:
         if not (memory / fname).exists():
-            issues.append(f"memory/{fname} missing")
+            warnings.append(f"memory/{fname} missing")
 
     # Check for broken chapter chain
     chapters_dir = story / "chapters"
@@ -35,7 +44,10 @@ def check_health(project_root: Path) -> dict:
         contracts = sorted(chapters_dir.glob("chapter_*_contract.json"))
         commits = sorted(commits_dir.glob("chapter_*_commit.json"))
         if len(contracts) > len(commits):
-            issues.append(f"Warning: {len(contracts)} contracts but only {len(commits)} commits — {len(contracts)-len(commits)} uncommitted chapters")
+            warnings.append(
+                f"Warning: {len(contracts)} contracts but only {len(commits)} commits — "
+                f"{len(contracts)-len(commits)} uncommitted chapters"
+            )
         # Check for gaps
         contract_nums = [int(f.stem.split("_")[1]) for f in contracts]
         commit_nums = [int(f.stem.split("_")[1]) for f in commits]
@@ -43,7 +55,7 @@ def check_health(project_root: Path) -> dict:
             expected = set(range(1, max(contract_nums) + 1))
             missing = expected - set(contract_nums)
             if missing:
-                issues.append(f"Missing contracts for chapters: {sorted(missing)}")
+                warnings.append(f"Missing contracts for chapters: {sorted(missing)}")
 
         # Check each commit for empty/invalid data
         for cf in commits:
@@ -61,13 +73,17 @@ def check_health(project_root: Path) -> dict:
                     and not guard.get("status")
                 )
                 if wc <= 0:
-                    issues.append(f"Empty commit: ch{ch} word_count={wc} — 章节文件可能未找到或为空")
+                    failures.append(
+                        f"Empty commit: ch{ch} word_count={wc} — 章节文件可能未找到或为空"
+                    )
                 if not title:
-                    issues.append(f"Empty commit: ch{ch} title missing")
+                    warnings.append(f"Empty commit: ch{ch} title missing")
                 if has_only_placeholder:
-                    issues.append(f"Placeholder commit: ch{ch} 仅有占位数据，word_count=0, events=[]")
+                    warnings.append(
+                        f"Placeholder commit: ch{ch} 仅有占位数据，word_count=0, events=[]"
+                    )
             except Exception as e:
-                issues.append(f"Broken commit file: {cf.name} — {e}")
+                failures.append(f"Broken commit file: {cf.name} — {e}")
 
     # Check open promises
     promises_file = memory / "promises.json"
@@ -75,7 +91,10 @@ def check_health(project_root: Path) -> dict:
         promises = json.loads(promises_file.read_text(encoding="utf-8"))
         open_promises = [p for p in promises if not p.get("resolved")]
         if open_promises:
-            issues.append(f"Open promises: {len(open_promises)} — chapters: {set(p['chapter'] for p in open_promises)}")
+            warnings.append(
+                f"Open promises: {len(open_promises)} — "
+                f"chapters: {set(p['chapter'] for p in open_promises)}"
+            )
 
     # Check event ledger
     ledger = story / "events" / "event_ledger.jsonl"
@@ -85,11 +104,29 @@ def check_health(project_root: Path) -> dict:
     else:
         event_count = 0
 
+    # Determine tier
+    if failures:
+        status = "FAIL"
+    elif warnings:
+        status = "WARN"
+    else:
+        status = "OK"
+
     return {
-        "ok": len(issues) == 0,
+        "status": status,
         "story_dir": str(story),
-        "issues": issues,
-        "contract_count": len(list((story/"chapters").glob("chapter_*_contract.json"))) if (story/"chapters").exists() else 0,
-        "commit_count": len(list((story/"commits").glob("chapter_*_commit.json"))) if (story/"commits").exists() else 0,
+        "warnings": warnings,
+        "failures": failures,
+        "issues": failures + warnings,
+        "contract_count": (
+            len(list((story / "chapters").glob("chapter_*_contract.json")))
+            if (story / "chapters").exists()
+            else 0
+        ),
+        "commit_count": (
+            len(list((story / "commits").glob("chapter_*_commit.json")))
+            if (story / "commits").exists()
+            else 0
+        ),
         "event_count": event_count,
     }

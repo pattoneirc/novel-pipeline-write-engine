@@ -1,7 +1,7 @@
 {
   "app": {
     "name": "novel-pipeline-write-engine",
-    "version": "0.6.0",
+    "version": "0.6.2",
     "mode": "local"
   },
   "paths": {

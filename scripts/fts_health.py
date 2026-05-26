@@ -14,6 +14,7 @@ Solution:
 
 import sqlite3
 import json
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -24,7 +25,11 @@ def _get_db_path(config: dict = None) -> str:
         db = config.get("db_path", "")
         if db:
             return db
-    return "D:\\HermesMemoryBase\\database\\hermes_memory.db"
+    # Fallback: use HERMES_MEMORY_DB env var or default relative path
+    env_db = os.environ.get("HERMES_MEMORY_DB", "")
+    if env_db:
+        return env_db
+    return str(Path.home() / "HermesMemoryBase" / "database" / "hermes_memory.db")
 
 
 def find_fts5_tables(conn: sqlite3.Connection) -> list[str]:

@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
+# Unified Python detection: prefer venv, fall back to system
+PYTHON=${PYTHON:-python3}
 if [ -d ".venv" ]; then
-  source .venv/bin/activate
+  . .venv/bin/activate 2>/dev/null || true
+  PYTHON=python
 fi
 
-python3 -m pytest tests/ -q "$@"
+$PYTHON -m pytest tests/ -q "$@"
