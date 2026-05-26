@@ -898,6 +898,11 @@ def cmd_learn(args):
     action = getattr(args, "action", "list")
     rule_text = " ".join(getattr(args, "rule", []) or [])
 
+    # Auto-detect: if action is not a known command, treat it as rule text
+    if action not in ("add", "list", "remove"):
+        rule_text = action + (" " + rule_text if rule_text else "")
+        action = "add"
+
     if action == "list":
         if not rules:
             print("  暂无已学规则。用 python novel.py learn add <规则> 添加。")
@@ -1172,7 +1177,7 @@ def main():
 
     # learn
     p_learn = sub.add_parser("learn", help="Writing rules learned")
-    p_learn.add_argument("action", nargs="?", default="list", choices=["add", "list", "remove"])
+    p_learn.add_argument("action", nargs="?", default="list")
     p_learn.add_argument("rule", nargs="*", help="Rule text to add")
 
     # board
