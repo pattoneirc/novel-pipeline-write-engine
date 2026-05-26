@@ -45,6 +45,30 @@ def check_health(project_root: Path) -> dict:
             if missing:
                 issues.append(f"Missing contracts for chapters: {sorted(missing)}")
 
+        # Check each commit for empty/invalid data
+        for cf in commits:
+            try:
+                commit = json.loads(cf.read_text(encoding="utf-8"))
+                ch = commit.get("chapter_no", "?")
+                wc = commit.get("word_count", 0)
+                title = commit.get("title", "")
+                events = commit.get("events", [])
+                guard = commit.get("guard_summary", {})
+                has_only_placeholder = (
+                    wc <= 0
+                    and not events
+                    and guard.get("note") == "手动生成"
+                    and not guard.get("status")
+                )
+                if wc <= 0:
+                    issues.append(f"Empty commit: ch{ch} word_count={wc} — 章节文件可能未找到或为空")
+                if not title:
+                    issues.append(f"Empty commit: ch{ch} title missing")
+                if has_only_placeholder:
+                    issues.append(f"Placeholder commit: ch{ch} 仅有占位数据，word_count=0, events=[]")
+            except Exception as e:
+                issues.append(f"Broken commit file: {cf.name} — {e}")
+
     # Check open promises
     promises_file = memory / "promises.json"
     if promises_file.exists():

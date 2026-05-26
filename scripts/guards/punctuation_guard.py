@@ -483,7 +483,7 @@ def analyze_chapter(filepath: str) -> Dict:
 
 def _generate_report(result: Dict, chapter_no: int) -> None:
     """将检查结果输出为 JSON 报告。"""
-    report_dir = Path("reports/punctuation_guard")
+    report_dir = Path("exports/reports/punctuation_guard")
     report_dir.mkdir(parents=True, exist_ok=True)
 
     filename = f"chapter_{chapter_no:03d}_punctuation_report.json"

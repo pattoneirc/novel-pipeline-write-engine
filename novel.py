@@ -764,11 +764,54 @@ def cmd_story(args):
             print(f"  {_story_missing_msg()}")
             return 1
         chapter_no = int(getattr(args, "chapter_no", "1") or "1")
+        
+        # Read real chapter file — use config's novels_root
+        novels_dir = PROJECT_ROOT / "novels"
+        if (PROJECT_ROOT / "config.json").exists():
+            import json as _json
+            try:
+                cfg = _json.loads((PROJECT_ROOT / "config.json").read_text(encoding="utf-8"))
+                nr = cfg.get("novels_root") or cfg.get("paths", {}).get("novels_root", "novels")
+                novels_dir = Path(nr) if Path(nr).is_absolute() else PROJECT_ROOT / nr
+            except: pass
+        slug = "demo_novel"
+        # Also try the config's default slug
+        slugs_to_try = [slug]
+        try:
+            if (PROJECT_ROOT / "config.json").exists():
+                cfg2 = _json.loads((PROJECT_ROOT / "config.json").read_text(encoding="utf-8"))
+                ds = cfg2.get("default_novel_slug") or cfg2.get("novel", {}).get("default_slug", "")
+                if ds and ds != slug:
+                    slugs_to_try.append(ds)
+        except: pass
+        import re as _re
+        ch_fp = None
+        # Search multiple possible locations
+        search_dirs = []
+        for s in slugs_to_try:
+            search_dirs.append(novels_dir / s / "第01卷")
+            search_dirs.append(novels_dir / s)
+            search_dirs.append(PROJECT_ROOT / "novels" / s / "第01卷")
+        for sd in search_dirs:
+            if not sd.exists(): continue
+            for pattern in [f"第{chapter_no}章*.txt", f"第{chapter_no:02d}章*.txt"]:
+                candidates = list(sd.glob(pattern))
+                if candidates:
+                    ch_fp = candidates[0]
+                    break
+            if ch_fp: break
+        wc = 0
+        ch_title = f"第{chapter_no}章"
+        if ch_fp and ch_fp.exists():
+            text = ch_fp.read_text(encoding="utf-8")
+            wc = sum(1 for c in text if '\u4e00' <= c <= '\u9fff' or '\u3400' <= c <= '\u4dbf')
+            ch_title = ch_fp.stem.replace("_", " ")
+        
         commit = commit_builder.build_commit(
             PROJECT_ROOT, chapter_no,
-            chapter_title=f"第{chapter_no}章",
-            word_count=0,
-            guard_summary={"note": "手动生成"},
+            chapter_title=ch_title,
+            word_count=wc,
+            guard_summary={"note": "手动生成"} if wc == 0 else {},
         )
         saved = commit_builder.save_commit(PROJECT_ROOT, chapter_no, commit)
         print(f"  [OK] 第{chapter_no}章提交记录已生成")
