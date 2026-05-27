@@ -4188,6 +4188,23 @@ def cmd_chapters():
     return 0
 
 
+def cmd_menu_show():
+    """v0.6.5-clean8: 普通用户菜单（纯文本）"""
+    from scripts.hermes_menu import get_project_status, render_main_menu
+    status = get_project_status()
+    print(render_main_menu(status))
+    return 0
+
+
+def cmd_menu_text():
+    """v0.6.5-clean8: 输出项目状态 JSON，供 Hermes 静默调用"""
+    import json as _json
+    from scripts.hermes_menu import get_project_status
+    status = get_project_status()
+    print(_json.dumps(status, ensure_ascii=False))
+    return 0
+
+
 def cmd_setup():
     """v0.6.5-clean7: 交互式设置 — 引导用户配置小说文件夹路径."""
     import json as _json
@@ -4776,6 +4793,9 @@ def main():
     # v0.6.5-clean7: setup + chapters
     sub.add_parser("setup", help="设置小说文件夹路径")
     sub.add_parser("chapters", help="列出当前作品所有章节")
+    # v0.6.5-clean8: Hermes menu
+    sub.add_parser("menu-show", help="显示普通用户菜单（纯文本）")
+    sub.add_parser("menu-text", help="输出项目状态 JSON（供 Hermes 调用）")
 
     args = parser.parse_args()
 
@@ -4857,6 +4877,10 @@ def main():
         sys.exit(cmd_setup())
     elif args.command == "chapters":
         sys.exit(cmd_chapters())
+    elif args.command == "menu-show":
+        sys.exit(cmd_menu_show())
+    elif args.command == "menu-text":
+        sys.exit(cmd_menu_text())
     else:
         # P2-2: 友好的"我该做什么"提示
         print("=" * 50)
