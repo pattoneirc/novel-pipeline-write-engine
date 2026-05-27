@@ -169,6 +169,18 @@ def cmd_demo():
     vol_dir = novels_root / slug / "第01卷"
     vol_dir.mkdir(parents=True, exist_ok=True)
 
+    # v0.6.5-clean8: Ensure slot_001 is active for demo
+    try:
+        import json as _json
+        ws_dir = PROJECT_ROOT / "workspace"
+        reg_file = ws_dir / "registry.json"
+        if reg_file.exists():
+            reg = _json.loads(reg_file.read_text(encoding="utf-8"))
+            reg["active_slot"] = "slot_001"
+            reg_file.write_text(_json.dumps(reg, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
     # STEP 3: Create demo chapter + outline.txt
     print("\n[STEP 3] Creating demo chapter...")
     paragraphs = [
@@ -194,6 +206,13 @@ def cmd_demo():
     chapter_file.write_text(demo_content, encoding="utf-8")
     cn_count = sum(1 for c in demo_content if '\u4e00' <= c <= '\u9fff' or '\u3400' <= c <= '\u4dbf')
     print(f"  [OK] {chapter_file.name} ({cn_count} 汉字)")
+
+    # v0.6.5-clean8: Also copy to active slot chapters dir for post
+    slot_ch_dir = PROJECT_ROOT / "workspace" / "slot_001" / "chapters"
+    slot_ch_dir.mkdir(parents=True, exist_ok=True)
+    slot_ch_file = slot_ch_dir / "第1章_开篇.txt"
+    slot_ch_file.write_text(demo_content, encoding="utf-8")
+    print(f"  [OK] slot_001/chapters/{slot_ch_file.name}")
 
     outline_file = novels_root / slug / "outline.txt"
     outline_file.write_text(
@@ -3019,8 +3038,17 @@ def _outline_add(file_path, title="", genre="", style="",
             print(f"    3 = 不同小说，创建新工作区" )
             print(f"    4 = 取消" )
             try:
-                choice = input("  > ").strip()
+                choice = input("  > ").strip().lower()
             except (EOFError, KeyboardInterrupt):
+                choice = "4"
+            # v0.6.5-clean8: 支持 y/n/new/cancel 别名
+            if choice in ("y", "yes", "1", "替换"):
+                choice = "1"
+            elif choice in ("n", "no", "2", "保存", "保留"):
+                choice = "2"
+            elif choice in ("new", "3", "新建"):
+                choice = "3"
+            elif choice in ("cancel", "c", "4", "取消"):
                 choice = "4"
             if choice == "1":
                 print("  → 替换当前激活大纲..." )
@@ -4504,58 +4532,33 @@ def cmd_stability_check(args=None):
         p1_issues.append(f"无法检查 slot FTS: {e}")
         score -= 5
 
-    # 11. v0.6.5-clean5: 轻量 Smoke 检查 (--full only, 替换完整 demo 防挂)
+    # 11. v0.6.5-clean8: --full 真跑 demo + 检查 exit code
     if full_mode:
-        smoke_ok = True
-        smoke_detail = []
         try:
-            # a) 检查 demo 大纲文件存在
-            demo_outline = PROJECT_ROOT / "examples" / "demo_novel" / "outline_skeleton.json"
-            if demo_outline.exists():
-                smoke_detail.append("demo大纲✓")
-            else:
-                smoke_detail.append("demo大纲✗")
-                smoke_ok = False
-
-            # b) 检查 config 可写（init 不会挂）
-            cfg_path = PROJECT_ROOT / "config.json"
-            smoke_detail.append("config✓" if cfg_path.exists() else "config✗")
-
-            # c) 检查 workspace slot DB 有 FTS
-            import sqlite3
-            ws = PROJECT_ROOT / "workspace"
-            fts_ok = True
-            for sd in sorted(ws.glob("slot_*")):
-                db = sd / "novel.db"
-                if db.exists():
-                    conn = sqlite3.connect(str(db))
-                    cur = conn.cursor()
-                    cur.execute("SELECT name FROM sqlite_master WHERE name='novel_chapter_fts'")
-                    if not cur.fetchone():
-                        fts_ok = False
-                    conn.close()
-            smoke_detail.append("slotFTS✓" if fts_ok else "slotFTS✗")
-            if not fts_ok:
-                smoke_ok = False
-
-            # d) 检查 story contract 能跑通（快速，不跑完整 demo）
-            story_dir = PROJECT_ROOT / ".story"
-            if story_dir.exists():
-                smoke_detail.append("story✓")
-            else:
-                smoke_detail.append("story未初始化")
-                # 不扣分——story init 是用户主动操作
-
-            checks.append(("稳定性 Smoke", smoke_ok, " ".join(smoke_detail)))
-            if not smoke_ok:
-                p0_issues.append("Smoke 检查未通过")
-                score -= 10
+            demo_result = _sp.run(
+                [sys.executable, "novel.py", "demo"],
+                cwd=str(PROJECT_ROOT), timeout=180,
+                capture_output=True, text=True
+            )
+            demo_ok = demo_result.returncode == 0
+            detail = "demo 通过" if demo_ok else f"demo 失败 (exit={demo_result.returncode})"
+            checks.append(("Demo 验证", demo_ok, detail))
+            if not demo_ok:
+                # Show last few lines of output
+                lines = (demo_result.stdout + demo_result.stderr).strip().split("\n")
+                last = "\n".join(lines[-5:]) if lines else "(无输出)"
+                p0_issues.append(f"Demo 运行失败: {last[:200]}")
+                score -= 20
+        except _sp.TimeoutExpired:
+            checks.append(("Demo 验证", False, "超时 (180s)"))
+            p0_issues.append("Demo 运行超时")
+            score -= 20
         except Exception as e:
-            checks.append(("稳定性 Smoke", False, str(e)[:60]))
-            p1_issues.append(f"Smoke 检查异常: {e}")
+            checks.append(("Demo 验证", False, str(e)[:60]))
+            p1_issues.append(f"Demo 检查异常: {e}")
             score -= 5
     else:
-        checks.append(("稳定性 Smoke", True, "跳过（使用 --full 运行）"))
+        checks.append(("Demo 验证", True, "跳过（使用 --full 运行）"))
 
     # 输出结果
     for name, ok, detail in checks:
