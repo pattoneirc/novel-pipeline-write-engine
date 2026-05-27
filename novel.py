@@ -797,7 +797,7 @@ def cmd_review(chapter_no: str = None, slug: str = None, volume_no: str = None):
 
 
 def cmd_export(slug: str = None, fmt: str = "md"):
-    """Export novel to a single file."""
+    """Export novel to a single file, v0.6.5-clean7: 用小说名建文件夹."""
     if not slug:
         print("用法: python novel.py export --slug <小说标识> [--format txt|md]")
         print()
@@ -807,19 +807,46 @@ def cmd_export(slug: str = None, fmt: str = "md"):
         return 1
     fmt = fmt or "md"
     ext = ".txt" if fmt == "txt" else ".md"
-    print(f"  正在导出小说「{slug}」，格式: {fmt}...")
+
+    # v0.6.5-clean7: 尝试从活跃 slot DB 读取小说标题
+    import sqlite3 as _sql
+    title = slug
+    try:
+        ws = PROJECT_ROOT / "workspace"
+        reg_file = ws / "registry.json"
+        if reg_file.exists():
+            import json as _json
+            reg = _json.loads(reg_file.read_text(encoding="utf-8"))
+            active = reg.get("active_slot", "")
+            slot_db = ws / active / "novel.db"
+            if slot_db.exists():
+                conn = _sql.connect(str(slot_db))
+                row = conn.execute("SELECT title FROM novels WHERE slug=?", (slug,)).fetchone()
+                if row:
+                    title = row[0]
+                conn.close()
+    except Exception:
+        pass
+
+    # 输出到 exports/{书名}/{书名}{ext}
+    exports_root = resolve_path(PROJECT_ROOT, _load_project_config().get("exports_root", "./exports"))
+    out_dir = exports_root / title
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = out_dir / f"{title}{ext}"
+
+    print(f"  正在导出小说「{title}」(slug={slug})，格式: {fmt}...")
     import subprocess
     try:
         args = [sys.executable, str(SCRIPTS_DIR / "export_novel.py"),
                 "--slug", slug, "--config", str(PROJECT_ROOT / "config.json"), "--format", fmt,
-                "--output", str(resolve_path(PROJECT_ROOT, _load_project_config().get("exports_root", "./exports")) / f"{slug}_full{ext}")]
+                "--output", str(out_path)]
         result = subprocess.run(args, cwd=str(PROJECT_ROOT), timeout=60, capture_output=True, text=True)
         if result.stdout:
             print(result.stdout.strip())
         if result.stderr:
             print(result.stderr.strip(), file=sys.stderr)
         if result.returncode == 0:
-            print(f"  ✅ 已导出到 exports/{slug}_full{ext}")
+            print(f"  ✅ 已导出到 {out_path}")
         else:
             print(f"  ⚠️ 导出未完成（退出码: {result.returncode}）")
         return result.returncode
