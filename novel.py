@@ -726,17 +726,17 @@ def _get_novels_root(cfg_path=None):
 
 
 def _get_outline_dir():
-    """v0.6.5-clean7: Read outline_dir from config, fallback to ../大纲 relative to novels_root."""
+    """v0.6.5-clean7: Read outline_dir from config, resolve relative to novels_root."""
     try:
         cfg = _load_project_config()
         od = cfg.get("paths", {}).get("outline_dir", "")
+        nr = Path(_get_novels_root())
         if od:
-            return str(resolve_path(PROJECT_ROOT, od))
+            return str(resolve_path(nr, od))
+        return str(nr / "大纲")
     except Exception:
-        pass
-    # Fallback: ../大纲 relative to novels_root
-    nr = Path(_get_novels_root())
-    return str(nr.parent / "大纲")
+        nr = Path(_get_novels_root())
+        return str(nr / "大纲")
 
 
 def _resolve_post_context(cfg):
@@ -830,14 +830,14 @@ def cmd_export(slug: str = None, fmt: str = "md"):
     except Exception:
         pass
 
-    # 输出到导出目录：config 的 export_output_dir 或 novels_root/../导出/
+    # 输出到导出目录：config 的 export_output_dir（相对 novels_root）或 导出/ 子目录
     cfg = _load_project_config()
     export_base = cfg.get("paths", {}).get("export_output_dir", "")
+    nr = Path(_get_novels_root())
     if export_base:
-        exports_root = resolve_path(PROJECT_ROOT, export_base)
+        exports_root = resolve_path(nr, export_base)
     else:
-        nr = Path(_get_novels_root())
-        exports_root = nr.parent / "导出"
+        exports_root = nr / "导出"
     out_dir = exports_root / title
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"{title}{ext}"
