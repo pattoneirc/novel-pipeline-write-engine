@@ -639,7 +639,11 @@ def cmd_post(chapter_no: str = None, slug: str = None, volume_no: str = None, fi
         print(f"  Running post-write guards for file: {file_path}")
     else:
         print(f"  Running post-write guards for chapter {chapter_no}...")
-    slug = slug or _get_default_slug(cfg)
+
+    # v0.6.5-clean6: Resolve from active slot, fallback to config
+    chapters_dir, slot_db_path, resolved_slug = _resolve_post_context(cfg)
+    slug = slug or resolved_slug
+
     try:
         import subprocess
         cmd = [sys.executable, str(SCRIPTS_DIR / "chapter_pipeline.py"), "post",
@@ -649,9 +653,9 @@ def cmd_post(chapter_no: str = None, slug: str = None, volume_no: str = None, fi
         if file_path:
             cmd.extend(["--chapters-dir", str(Path(file_path).parent)])
         else:
-            vol = int(volume_no or 1)
-            novels_root = Path(_get_novels_root(cfg))
-            cmd.extend(["--chapters-dir", str(novels_root / slug / f"第{vol:02d}卷")])
+            cmd.extend(["--chapters-dir", chapters_dir])
+        if slot_db_path:
+            cmd.extend(["--db-path", slot_db_path])
         result = subprocess.run(cmd, cwd=str(PROJECT_ROOT), timeout=300)
         if result.returncode != 0:
             return result.returncode
@@ -719,6 +723,43 @@ def _get_novels_root(cfg_path=None):
         return str(resolve_path(PROJECT_ROOT, cfg.get("novels_root", "./novels")))
     except Exception:
         return str(PROJECT_ROOT / "novels")
+
+
+def _resolve_post_context(cfg):
+    """v0.6.5-clean6: Resolve chapters_dir + db_path from active slot if available.
+    Returns (chapters_dir, db_path, slug). Falls back to config defaults.
+    """
+    import json as _json
+    ws = PROJECT_ROOT / "workspace"
+    reg_file = ws / "registry.json"
+
+    if reg_file.exists():
+        try:
+            reg = _json.loads(reg_file.read_text(encoding="utf-8"))
+            active = reg.get("active_slot", "")
+            if active:
+                slot_dir = ws / active
+                ch_dir = slot_dir / "chapters"
+                db_path = slot_dir / "novel.db"
+                if db_path.exists():
+                    # Find slug from slot's novel.db
+                    import sqlite3 as _sql
+                    conn = _sql.connect(str(db_path))
+                    try:
+                        row = conn.execute("SELECT slug FROM novels LIMIT 1").fetchone()
+                        slug = row[0] if row else _get_default_slug(cfg)
+                    except Exception:
+                        slug = _get_default_slug(cfg)
+                    finally:
+                        conn.close()
+                    return str(ch_dir), str(db_path), slug
+        except Exception:
+            pass
+
+    # Fallback: old config-based paths
+    slug = _get_default_slug(cfg)
+    novels_root = _get_novels_root(cfg)
+    return str(Path(novels_root) / slug / "第01卷"), None, slug
 
 
 def cmd_review(chapter_no: str = None, slug: str = None, volume_no: str = None):

@@ -104,6 +104,17 @@ class OutlineManager:
         ts = datetime.now().strftime("%Y%m%d%H%M%S")
         return f"{base}_{ts}"
 
+    def _title_to_slug(self, title: str) -> str:
+        """将中文标题转为拼音 slug（v0.6.5-clean6）"""
+        import re, hashlib
+        # 简单方案：取标题前8个中文字符的 MD5 前8位
+        chinese = re.sub(r'[^\u4e00-\u9fff]', '', title)[:8]
+        if chinese:
+            return hashlib.md5(chinese.encode()).hexdigest()[:8]
+        # 纯英文/数字
+        clean = re.sub(r'[^a-z0-9]', '_', title.lower().strip())[:20]
+        return clean or "novel"
+
     def _snapshot_version(self, old_data: Dict) -> List[Dict]:
         """创建一个版本快照，追加到版本历史"""
         versions = old_data.get("outline_versions", [])
@@ -749,6 +760,21 @@ class OutlineManager:
         slot_name = title or "未命名项目"
         slot_dir = self._create_slot_structure(slot_id, slot_name)
         self._register_slot(slot_id, slot_name, f"自动创建于相似度检测（低相似度）")
+
+        # v0.6.5-clean6: 向 slot 的 novel.db 插入 novel 记录
+        slug = self._title_to_slug(title) if title else slot_id
+        db_path = slot_dir / "novel.db"
+        if db_path.exists():
+            import sqlite3 as _sql
+            _conn = _sql.connect(str(db_path))
+            try:
+                _conn.execute(
+                    "INSERT OR IGNORE INTO novels(slug, title, status) VALUES(?,?,?)",
+                    (slug, title, "planning")
+                )
+                _conn.commit()
+            finally:
+                _conn.close()
 
         # 3. 导入大纲到新 slot
         outline_id = self._generate_outline_id(title)
