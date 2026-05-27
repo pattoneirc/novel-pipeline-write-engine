@@ -729,17 +729,9 @@ def _get_novels_root(cfg_path=None):
 
 
 def _get_outline_dir():
-    """v0.6.5-clean7: Read outline_dir from config, resolve relative to novels_root."""
-    try:
-        cfg = _load_project_config()
-        od = cfg.get("paths", {}).get("outline_dir", "")
-        nr = Path(_get_novels_root())
-        if od:
-            return str(resolve_path(nr, od))
-        return str(nr / "大纲")
-    except Exception:
-        nr = Path(_get_novels_root())
-        return str(nr / "大纲")
+    """v0.6.5-clean7: 大纲目录 = novels_root 的同级 大纲/."""
+    nr = Path(_get_novels_root())
+    return str(nr.parent / "大纲")
 
 
 def _resolve_post_context(cfg):
@@ -2697,7 +2689,7 @@ def _check_outline_gate() -> int:
     try:
         mgr = _get_outline_manager()
         if not mgr.has_active_outline():
-            # v0.6.5-clean7: 引导用户把大纲放到统一的 大纲/ 目录
+            # v0.6.5-clean7: 引导用户放大纲在小说文件夹下
             outline_dir = Path(_get_outline_dir())
             print("=" * 60)
             print("  ⛔ 没有激活的大纲")
@@ -2705,13 +2697,9 @@ def _check_outline_gate() -> int:
             print()
             print("  当前小说没有激活大纲，不能开写。")
             print()
-            print(f"  💡 请把大纲文件放到「大纲」文件夹里：")
-            print(f"     {outline_dir}")
+            print(f"  💡 把大纲.txt放到：{outline_dir}/你的小说名/大纲.txt")
             print()
-            print(f"  然后在 Hermes 说「添加大纲」即可。")
-            print()
-            print("  高级用法:")
-            print(f"  python novel.py outline add {outline_dir / '大纲.txt'}")
+            print(f"  然后运行 python novel.py outline add")
             return 1
     except Exception as e:
         # If outline module not available, allow pass-through
@@ -2775,42 +2763,44 @@ def cmd_outline(args):
 def _outline_add(file_path, title="", genre="", style="",
                   replace_current=False, keep_inactive=False, dry_run=False):
     """添加大纲文件 — P0-6/P0-7 智能行为"""
-    # v0.6.5-clean7: 无文件时自动扫描 大纲/ 目录
+    # v0.6.5-clean7: 无文件时自动扫描 大纲/书名/大纲.txt
     if not file_path:
-        outline_dir = Path(_get_outline_dir())
-        if outline_dir.exists():
-            candidates = sorted(outline_dir.glob("*.txt"))
-            if candidates:
-                print(f"  📂 扫描 {outline_dir} ...")
-                print(f"  找到 {len(candidates)} 个大纲文件:")
-                for i, c in enumerate(candidates, 1):
-                    try:
-                        first = c.read_text(encoding="utf-8").strip().split("\n")[0].lstrip("# ")[:60]
-                    except Exception:
-                        first = "(无法预览)"
-                    print(f"    [{i}] {c.name}")
-                    print(f"        {first}")
-                print()
-                print(f"  请输入编号 (1-{len(candidates)}) 或完整路径:")
+        nr = Path(_get_outline_dir())
+        candidates = []
+        if nr.exists():
+            for subdir in sorted(nr.iterdir()):
+                if subdir.is_dir():
+                    of = subdir / "大纲.txt"
+                    if of.exists():
+                        candidates.append(of)
+        if candidates:
+            print(f"  📂 扫描 {nr} ...")
+            print(f"  找到 {len(candidates)} 个大纲:")
+            for i, c in enumerate(candidates, 1):
                 try:
-                    choice = input("  > ").strip()
-                    idx = int(choice) - 1
-                    if 0 <= idx < len(candidates):
-                        file_path = str(candidates[idx])
-                        print(f"  已选择: {candidates[idx].name}")
-                    else:
-                        file_path = choice
-                except (ValueError, EOFError):
+                    first = c.read_text(encoding="utf-8").strip().split("\n")[0].lstrip("# ")[:60]
+                except Exception:
+                    first = "(无法预览)"
+                print(f"    [{i}] {c.parent.name}/大纲.txt")
+                print(f"        {first}")
+            print()
+            print(f"  请输入编号 (1-{len(candidates)}) 或完整路径:")
+            try:
+                choice = input("  > ").strip()
+                idx = int(choice) - 1
+                if 0 <= idx < len(candidates):
+                    file_path = str(candidates[idx])
+                    print(f"  已选择: {candidates[idx].parent.name}/大纲.txt")
+                else:
                     file_path = choice
-                if not file_path:
-                    print("  ❌ 未选择文件")
-                    return 1
-            else:
-                print(f"  📂 {outline_dir} 目录为空，请先放入 .txt 大纲文件")
+            except (ValueError, EOFError):
+                file_path = choice
+            if not file_path:
+                print("  ❌ 未选择文件")
                 return 1
         else:
-            print(f"  💡 请创建大纲目录: {outline_dir}")
-            print(f"     然后放入 .txt 大纲文件，再运行此命令")
+            print(f"  💡 未找到大纲。请按此结构放置：")
+            print(f"     {nr}/你的小说名/大纲.txt")
             return 1
 
     fp = Path(file_path)
@@ -4203,7 +4193,6 @@ def cmd_setup():
     # Create directory if needed
     try:
         p.mkdir(parents=True, exist_ok=True)
-        (p / "大纲").mkdir(exist_ok=True)
     except Exception as e:
         print(f"  ⚠️ 无法创建目录: {e}")
 
@@ -4212,15 +4201,13 @@ def cmd_setup():
         cfg["paths"] = {}
     cfg["novels_root"] = str(p)
     cfg["paths"]["novels_root"] = str(p)
-    cfg["paths"]["outline_dir"] = "大纲"
     cfg_file.write_text(_json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
 
     print()
     print(f"  ✅ 小说文件夹已设置为: {p}")
-    print(f"     大纲暂存区:     {p / '大纲'}")
-    print(f"     每部小说自动建子文件夹，导出也在各自文件夹内")
+    print(f"     每部小说一个子文件夹，大纲、章节、导出都在里面")
     print()
-    print(f"  现在可以把大纲 .txt 放到 {p / '大纲'} 下，")
+    print(f"  现在把大纲.txt放到小说文件夹（如 {p / '旧楼深处/大纲.txt'}），")
     print(f"  然后运行 python novel.py outline add")
     print()
     return 0
