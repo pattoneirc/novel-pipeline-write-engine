@@ -19,6 +19,7 @@ guard_orchestrator.py — 门禁调度器 v0.4.0
 import re, json, sys, argparse
 from pathlib import Path
 from typing import Optional
+from utils import count_chinese
 
 # ═══════════════════════════════════════════════════
 # 门禁分层定义
@@ -81,9 +82,6 @@ LEVEL2_CANNOT_FAIL = {k for k, v in GUARD_LEVELS.items() if v == 2}
 # ═══════════════════════════════════════════════════
 # 调度逻辑
 # ═══════════════════════════════════════════════════
-
-def count_chinese(text: str) -> int:
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
 
 
 def should_skip_heavy_guards(content: str, policy: dict) -> bool:

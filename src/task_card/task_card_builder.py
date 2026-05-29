@@ -11,11 +11,9 @@ Usage:
   python -m src.task_card.task_card_builder <chapter_no> [--config config.json] [--novel-slug demo_novel]
 """
 
-import json
 import sqlite3
 import sys
 import argparse
-import os
 from pathlib import Path
 
 
@@ -23,29 +21,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_SLUG = "demo_novel"
 DEFAULT_CONFIG = PROJECT_ROOT / "config.json"
 
+from path_setup import ensure_paths; ensure_paths()
 
-def load_config(config_path: str | None) -> dict:
-    """Load JSON config, falling back to defaults."""
-    cfg = {}
-    if config_path:
-        p = Path(config_path)
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-    return cfg
-
-
-def get_db_path(config: dict) -> str:
-    return config.get("db_path", str(PROJECT_ROOT / "data" / "novel_memory.db"))
-
-
-def get_novel_id(conn: sqlite3.Connection, slug: str) -> int | None:
-    try:
-        cur = conn.execute("SELECT id FROM novels WHERE slug = ?", (slug,))
-        row = cur.fetchone()
-        return row[0] if row else None
-    except Exception:
-        return None
+from utils import load_config, get_db_path, get_novel_id  # noqa: E402
 
 
 def get_prev_chapter_end(conn: sqlite3.Connection, novel_id: int, chapter_no: int) -> str:
@@ -172,11 +150,11 @@ def build_task_card(chapter_no: int, config: dict, slug: str) -> str:
     if not Path(db_path).exists():
         return f"# 任务卡 — 第{chapter_no}章\n\n> [WARN] 数据库不存在: {db_path}\n\n请先初始化数据库。"
 
-    conn = sqlite3.connect(db_path)
-    novel_id = get_novel_id(conn, slug)
+    novel_id = get_novel_id(config, slug)
     if not novel_id:
-        conn.close()
         return f"# 任务卡 — 第{chapter_no}章\n\n> [WARN] 小说 `{slug}` 未在数据库中注册。"
+
+    conn = sqlite3.connect(db_path)
 
     plan = get_chapter_plan(conn, novel_id, chapter_no)
     prev_end = get_prev_chapter_end(conn, novel_id, chapter_no)

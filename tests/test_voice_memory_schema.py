@@ -1,8 +1,8 @@
 """test_voice_memory_schema.py — 验证声纹相关表创建和 migration"""
 
-import sqlite3, tempfile, os, sys
+import sqlite3, tempfile, os
 from pathlib import Path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+
 
 from init_db import init_db, find_schema, find_migrations
 

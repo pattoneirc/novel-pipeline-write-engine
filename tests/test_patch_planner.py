@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test patch_planner — 改稿补丁规划器测试"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 from patch_planner import build_patch_plan, detect_locked_ranges, split_paragraphs
 
 

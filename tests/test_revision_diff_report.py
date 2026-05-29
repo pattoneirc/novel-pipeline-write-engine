@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test revision_diff_report — 改稿对比报告测试"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 from revision_diff_report import (
     generate_diff_report, compute_diff_summary,
     generate_risk_flags, split_paragraphs

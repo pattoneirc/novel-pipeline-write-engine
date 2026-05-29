@@ -1,10 +1,10 @@
 """
 test_skeleton_flow.py — Phase 2 端到端测试
 """
-import pytest, sqlite3, tempfile, os, sys, json
+import pytest, sqlite3, tempfile, os, json
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+
 from chapter_pipeline import App, DEFAULT_CONFIG
 import init_db
 

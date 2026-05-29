@@ -13,13 +13,7 @@ import re, json, sys, argparse
 from pathlib import Path
 from typing import List
 
-
-def split_paragraphs(text: str) -> list[str]:
-    return [p.strip() for p in text.split("\n") if p.strip()]
-
-
-def count_chinese(text: str) -> int:
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+from utils import count_chinese, split_paragraphs
 
 
 def detect_locked_ranges(paragraphs: List[str]) -> list[dict]:

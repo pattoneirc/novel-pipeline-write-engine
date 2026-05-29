@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test dialogue_naturalness_guard — 对白自然度门禁测试"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from dialogue_naturalness_guard import (
     build_report,

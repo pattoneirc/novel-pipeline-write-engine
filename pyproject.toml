@@ -1,3 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "novel-pipeline-write-engine"
+version = "0.6.5"
+description = "Lightweight novel engineering pipeline for long-form fiction"
+requires-python = ">=3.10"
+license = {text = "MIT OR GPL-3.0"}
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+rag = [
+    "chromadb>=0.4.0",
+    "sentence-transformers>=2.2.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-timeout>=2.0",
+]
+
+[project.scripts]
+novel = "novel_pipeline.cli_entry:main"
+
+[tool.setuptools.packages.find]
+include = ["scripts*", "src*", "novel_pipeline*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.sql", "*.json", "*.yaml", "*.yml"]
+"novel_pipeline" = ["VERSION"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

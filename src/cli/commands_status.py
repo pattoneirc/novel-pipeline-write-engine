@@ -129,9 +129,7 @@ def check_fts5() -> bool:
 
 def check_guard_registry() -> bool:
     """Guard registry imports and validates"""
-    scripts_dir = PROJECT_ROOT / "scripts"
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
+    from path_setup import ensure_paths; ensure_paths()
     try:
         from guard_registry import GUARD_LEVELS, MODE_GUARDS
         guard_count = len(GUARD_LEVELS)

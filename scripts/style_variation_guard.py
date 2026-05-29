@@ -20,13 +20,12 @@ import re, json, sys, argparse, statistics
 from pathlib import Path
 from collections import Counter
 
+from utils import count_chinese, split_paragraphs, split_sentences
+
 
 # ═══════════════════════════════════════════════════
 # 正则模式
 # ═══════════════════════════════════════════════════
-
-# 分句: 按中文标点切分
-SENTENCE_SPLIT = re.compile(r'[。！？；\n]+')
 
 # 句子开头（取出前两个字用于统计，跳过引号等）
 SENTENCE_OPENING = re.compile(r'^[\s""「」\'"‘’]*([\u4e00-\u9fff]{1,2})')
@@ -48,25 +47,6 @@ COMMON_OPENERS = {'他', '她', '这', '那', '但', '我', '你', '一', '在',
                   '不', '可', '就', '还', '也', '又', '而', '却', '便'}
 
 
-# ═══════════════════════════════════════════════════
-# 文本分割
-# ═══════════════════════════════════════════════════
-
-def split_sentences(text: str) -> list[str]:
-    """按中文标点分割句子"""
-    raw = SENTENCE_SPLIT.split(text)
-    return [s.strip() for s in raw if len(s.strip()) >= 2]
-
-
-def split_paragraphs(text: str) -> list[str]:
-    """按空行/换行分割段落"""
-    raw = [p.strip() for p in text.split('\n') if p.strip()]
-    return [p for p in raw if len(p) >= 5]
-
-
-def count_chinese(text: str) -> int:
-    """计算中文字符数"""
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
 
 
 # ═══════════════════════════════════════════════════
@@ -162,7 +142,7 @@ def compute_transition_density(text: str) -> float:
 def build_report(text: str, chapter_no: int = 1) -> dict:
     """构建句式变化门禁报告"""
     sentences = split_sentences(text)
-    paragraphs = split_paragraphs(text)
+    paragraphs = split_paragraphs(text, min_chars=5)
 
     if not sentences:
         return {

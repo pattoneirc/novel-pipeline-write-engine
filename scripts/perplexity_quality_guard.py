@@ -21,6 +21,8 @@ from pathlib import Path
 from collections import Counter
 from typing import Optional
 
+from utils import count_chinese, split_paragraphs, split_sentences
+
 
 # ═══════════════════════════════════════════════════
 # 默认配置
@@ -51,38 +53,6 @@ DEFAULT_QGP_CONFIG = {
 # ═══════════════════════════════════════════════════
 # 文本分割
 # ═══════════════════════════════════════════════════
-
-def split_paragraphs(text: str, min_chars: int = 40) -> list[str]:
-    """按空行分段落，过滤过短段落"""
-    raw = [p.strip() for p in text.split("\n") if p.strip()]
-    merged = []
-    buf = ""
-    for p in raw:
-        cn = len([c for c in p if '\u4e00' <= c <= '\u9fff'])
-        if cn < min_chars:
-            buf += p
-            if len([c for c in buf if '\u4e00' <= c <= '\u9fff']) >= min_chars:
-                merged.append(buf)
-                buf = ""
-        else:
-            if buf:
-                merged.append(buf)
-                buf = ""
-            merged.append(p)
-    if buf:
-        merged.append(buf)
-    return [p for p in merged if len([c for c in p if '\u4e00' <= c <= '\u9fff']) >= min_chars]
-
-
-def split_sentences(paragraph: str) -> list[str]:
-    """按中文标点分句"""
-    sents = re.split(r'[。！？；\n]', paragraph)
-    return [s.strip() for s in sents if s.strip() and len(s.strip()) >= 3]
-
-
-def count_chinese(text: str) -> int:
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
-
 
 # ═══════════════════════════════════════════════════
 # N-gram 分析
@@ -175,7 +145,7 @@ def repeated_phrase_ratio(text: str, min_len: int = 4,
 
 def sentence_length_stats(paragraph: str) -> dict:
     """句长变化统计"""
-    sents = split_sentences(paragraph)
+    sents = split_sentences(paragraph, min_length=3)
     if len(sents) < 2:
         return {"mean": 0, "std": 0, "cv": 0, "count": len(sents)}
     lengths = [len(s) for s in sents]
@@ -267,7 +237,7 @@ def compute_rhythm_flatness(paragraphs: list[str]) -> float:
     para_lens = [count_chinese(p) for p in paragraphs]
     all_sent_lens = []
     for p in paragraphs:
-        sents = split_sentences(p)
+        sents = split_sentences(p, min_length=3)
         all_sent_lens.extend([len(s) for s in sents])
 
     if not all_sent_lens:

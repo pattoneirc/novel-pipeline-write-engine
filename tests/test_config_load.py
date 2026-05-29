@@ -1,7 +1,7 @@
 """test_config_load.py — 配置加载测试"""
 import pytest
-import json, tempfile, os, sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+import json, tempfile, os
+
 
 from chapter_pipeline import load_config, DEFAULT_CONFIG
 

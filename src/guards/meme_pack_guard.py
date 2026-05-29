@@ -14,73 +14,10 @@ import re
 from pathlib import Path
 from typing import Optional
 
-
-# ═══════════════════════════════════════════════════
-# Pack loading
-# ═══════════════════════════════════════════════════
-
-def _load_yaml_pack(path: Path) -> Optional[dict]:
-    """Try to load a YAML meme pack file."""
-    try:
-        import yaml
-    except ImportError:
-        return None
-    
-    try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            return None
-    except Exception:
-        return None
-    
-    pack_id = raw.get("id", path.stem)
-    
-    return {
-        "pack_id": pack_id,
-        "name": raw.get("name", ""),
-        "type": raw.get("type", "meme"),
-        "markers": raw.get("variants", raw.get("allowed_terms", [])),
-        "danger_markers": raw.get("banned_terms", raw.get("banned_markers", [])),
-        "soft_markers": raw.get("soft_markers", []),
-        "overuse_warning_threshold": (
-            raw.get("frequency", {}).get("max_per_chapter", 5)
-            if isinstance(raw.get("frequency"), dict) else 5
-        ),
-        "cooldown_chapters": (
-            raw.get("frequency", {}).get("cooldown_chapters", 3)
-            if isinstance(raw.get("frequency"), dict) else 3
-        ),
-        "allowed_roles": raw.get("allowed_roles", []),
-        "forbidden_roles": raw.get("forbidden_roles", []),
-        "severity_limit": raw.get("severity_limit", {}),
-        "max_scene_seriousness": (
-            raw.get("severity_limit", {}).get("max_scene_seriousness", "medium")
-            if isinstance(raw.get("severity_limit"), dict) else "medium"
-        ),
-    }
-
-
-def _load_json_pack(path: Path) -> Optional[dict]:
-    """Load a JSON meme pack file."""
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
-    
-    return {
-        "pack_id": raw.get("pack_id", path.stem),
-        "name": raw.get("name", ""),
-        "type": raw.get("type", "meme"),
-        "markers": raw.get("allowed_markers", raw.get("markers", [])),
-        "danger_markers": raw.get("danger_markers", []) + raw.get("banned_markers", []),
-        "soft_markers": raw.get("soft_markers", []),
-        "overuse_warning_threshold": raw.get("overuse_warning_threshold", 5),
-        "cooldown_chapters": raw.get("cooldown_chapters", 3),
-        "allowed_roles": raw.get("allowed_roles", raw.get("suitable_archetypes", [])),
-        "forbidden_roles": raw.get("forbidden_roles", raw.get("forbidden_archetypes", [])),
-        "severity_limit": raw.get("severity_limit", {}),
-        "max_scene_seriousness": raw.get("max_scene_seriousness", "medium"),
-    }
+try:
+    from .pack_utils import _load_yaml_pack, _load_json_pack
+except ImportError:
+    from pack_utils import _load_yaml_pack, _load_json_pack
 
 
 def load_meme_packs(packs_dir: str) -> dict:

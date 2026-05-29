@@ -1,8 +1,8 @@
 """test_import_voice_packs.py — 验证 voice_packs 导入"""
 
-import sqlite3, tempfile, os, sys
+import sqlite3, tempfile, os
 from pathlib import Path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+
 
 from init_db import init_db, find_schema, find_migrations
 from import_voice_packs import import_packs

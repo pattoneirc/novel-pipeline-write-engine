@@ -12,10 +12,9 @@ Uses json.load to load pack JSON files directly, with proper field mapping
 """
 
 import json
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from character_voice_guard import run_character_voice_check
 

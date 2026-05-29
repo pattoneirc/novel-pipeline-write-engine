@@ -20,6 +20,8 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from version import get_version
+
 from .context_agent import ContextAgent
 from .voice_agent import VoiceAgent
 from .anti_ai_agent import AntiAIAgent
@@ -147,7 +149,7 @@ class AgentOrchestrator:
                 "should_fix_count": chief_result.get("summary", {}).get("should_fix_count", 0),
             },
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "version": "0.5.5",
+            "version": get_version(),
         }
 
         # ── 写入磁盘 ──

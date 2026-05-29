@@ -317,3 +317,18 @@ CREATE VIRTUAL TABLE IF NOT EXISTS novel_plot_fts USING fts5(
     title, content,
     content='plot_threads', content_rowid='id'
 );
+
+-- ============================================================
+-- 六、迁移版本管理
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    applied_at TEXT DEFAULT (datetime('now'))
+);
+
+INSERT OR IGNORE INTO schema_migrations (version, name) VALUES
+    (1, 'initial_schema'),
+    (2, 'novel_business'),
+    (3, 'version_promise');

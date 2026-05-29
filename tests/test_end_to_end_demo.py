@@ -1,10 +1,10 @@
 """
 test_end_to_end_demo.py — v0.3.0 端到端流程测试
 """
-import pytest, sqlite3, tempfile, os, sys, json, shutil
+import pytest, sqlite3, tempfile, os, json, shutil
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+
 import init_db
 from chapter_pipeline import App, DEFAULT_CONFIG
 

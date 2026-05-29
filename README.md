@@ -4,7 +4,7 @@
 
 Novel Pipeline Write Engine 是一个轻量小说工程化写作流水线，专注长篇小说的连续性、角色口吻、AI 腔检查、防幻觉、写前任务卡和写后质量报告。
 
-> **当前版本：v0.6.5 — Cross-Platform Release。** 统一入口 novel.py、健康检查 status、写前任务卡、Voice/Meme Pack 增强、Reader Pull 追读力门禁、HTML 只读报告。路径修复（novels/<slug>/第01卷）、报告目录统一、demo 自动入库。43 个测试文件，296 个测试用例。
+> **当前版本：v0.6.5 — Cross-Platform Release。** 统一入口 novel.py、健康检查 status、写前任务卡、Voice/Meme Pack 增强、Reader Pull 追读力门禁、HTML 只读报告。路径修复（novels/<slug>/第01卷）、报告目录统一、demo 自动入库。46 个测试文件，296 个测试用例。
 
 ---
 
@@ -233,18 +233,16 @@ pytest tests/ -v
 - **Shadow Mode**：新门禁先影子运行，不影响原有结果
 - **默认不依赖 LLM**：Semantic Judge 预留但 mode=off
 
-详见 `docs/guard_calibration_loop.md`
+详见 `docs/GUARD_REGISTRY.md`
 
 ### 目录结构
 
 ```
 voice_packs/
-├── base/          ← 通用角色声纹包（9个）
-├── registers/     ← 语体包（8个）
-├── dialects/      ← 方言包（5个）
-├── memes/         ← 梗语言包（7个）
-├── bindings/      ← 角色绑定模板
-└── samples/       ← 好坏示例
+├── registers/     ← 语体包（5个）
+├── dialects/      ← 方言包（6个）
+├── memes/         ← 梗语言包（2个）
+└── english/       ← 英语包（4个）
 ```
 
 核心系统提供通用角色类型绑定模板（`voice_packs/bindings/demo_bindings.yaml`），支持 8 种通用角色类型：
@@ -307,7 +305,7 @@ novel-pipeline-write-engine/
 │   ├── demo_chapters/               ← Demo 章节样本
 │   └── demo_reports/                ← Demo 报告样本
 │
-├── tests/                           ← 43 个测试文件，296 个测试用例
+├── tests/                           ← 46 个测试文件，296 个测试用例
 ├── docs/                            ← 架构 / 规范 / 发布说明
 │   ├── releases/                    ← 历史版本发布说明
 │   └── skills/                      ← Agent 写作路由
@@ -322,7 +320,7 @@ novel-pipeline-write-engine/
 
 | 能力 | 作用 |
 |------|------|
-| SQLite 长期记忆 | 记录章节、人物、设定、摘要、标题、状态（26表+6FTS5） |
+| SQLite 长期记忆 | 记录章节、人物、设定、摘要、标题、状态（21表+6FTS5） |
 | Chapter Pipeline | pre / post / review / volume 分阶段处理 |
 | Guard Registry | 统一 21 个门禁入口，避免多入口结果漂移 |
 | Continuity Evidence | 检查上一章状态、钩子、任务是否被承接 |
@@ -331,7 +329,7 @@ novel-pipeline-write-engine/
 | Scene Causality Guard | 检查行动是否带来可见后果 |
 | Anti-AI / QGP | 检测模板化、重复、总结腔、异常平滑 |
 | Reader Pull Guard | 追读力检查（钩子/兑现/悬念/爽点/代价） |
-| Voice/Meme Pack | 41 个声纹包（方言/语体/梗/英语/旁白/禁用） |
+| Voice/Meme Pack | 21 个声纹包（方言/语体/梗/英语/旁白/禁用） |
 | Punctuation Guard | 破折号密度检测（>5/千字 WARN, >12/千字 SEVERE） |
 | Multi-Agent Review | 8 Agent + Chief Editor 并行审稿，多维度评分 |
 | Revision Loop | 输出可审阅的改稿建议，默认不覆盖原文 |
@@ -389,10 +387,6 @@ next chapter context        ← 自动读取上章 brief，进入下章 pre
 - [拟人审稿质量套件](docs/HUMAN_GRADE_REVISION_SUITE.md)
 - [改稿闭环](docs/REVISION_LOOP.md)
 - [部署指南](docs/setup-guide.md)
-- [Voice Pack 通用资产](docs/voice_pack_assets.md)
-- [Meme Pack 梗语言资产](docs/meme_pack_assets.md)
-- [Dialect Pack 方言资产](docs/dialect_pack_assets.md)
-- [角色绑定指南](docs/voice_pack_binding_guide.md)
 
 ### Agent Skill 文档
 
@@ -411,7 +405,7 @@ next chapter context        ← 自动读取上章 brief，进入下章 pre
 | 依赖 | Python + SQLite，无需 Docker / Node / npm |
 | 报告 | 纯 HTML，双击即开，无 CDN |
 | 门禁 | 21 个规则门禁，可校准 |
-| Voice Pack | 41 个 JSON + YAML 声纹包，方言/语体/梗/英语全覆盖 |
+| Voice Pack | 21 个 JSON + YAML 声纹包，方言/语体/梗/英语全覆盖 |
 | 多Agent审稿 | 8 Agent + Chief Editor，默认关闭，手动触发 |
 | 学习曲线 | 5 分钟跑通 demo |
 | 适用 | 个人作者、小团队 |

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test revision_task_generator — 修改任务生成器测试"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 from revision_task_generator import generate_tasks
 
 

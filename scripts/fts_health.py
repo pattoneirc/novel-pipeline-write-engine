@@ -148,9 +148,15 @@ def safe_fts_search(query: str, config: dict = None,
                     table: str = "novel_chapter_fts",
                     columns: str = "content",
                     limit: int = 20,
-                    fallback: bool = True) -> dict:
+                    fallback: bool = True,
+                    with_rank: bool = False) -> dict:
     """
     Execute FTS5 search with auto-repair and LIKE fallback.
+
+    Args:
+        with_rank: If True, include FTS5 bm25 rank in results and order by rank.
+                   Results tuples become (..., rank_value) with an extra element.
+                   LIKE fallback yields 0.0 for rank.
 
     Returns:
       {"ok": True, "results": [...], "method": "fts5"|"rebuild"|"like"}
@@ -161,11 +167,13 @@ def safe_fts_search(query: str, config: dict = None,
 
     conn = sqlite3.connect(db_path)
 
-    # Try FTS5 first
+    select_cols = f"{columns}, rank" if with_rank else columns
+    order_by = " ORDER BY rank" if with_rank else ""
+
     try:
         c = conn.cursor()
         c.execute(
-            f"SELECT {columns} FROM {table} WHERE {table} MATCH ? LIMIT ?",
+            f"SELECT {select_cols} FROM {table} WHERE {table} MATCH ?{order_by} LIMIT ?",
             (query, limit))
         results = c.fetchall()
         conn.close()
@@ -175,13 +183,12 @@ def safe_fts_search(query: str, config: dict = None,
             conn.close()
             return {"ok": False, "error": str(e), "results": []}
 
-    # FTS5 broken — try rebuild then retry
     rebuild_result = rebuild_fts(config)
     conn2 = sqlite3.connect(db_path)
     try:
         c2 = conn2.cursor()
         c2.execute(
-            f"SELECT {columns} FROM {table} WHERE {table} MATCH ? LIMIT ?",
+            f"SELECT {select_cols} FROM {table} WHERE {table} MATCH ?{order_by} LIMIT ?",
             (query, limit))
         results = c2.fetchall()
         conn2.close()
@@ -189,16 +196,15 @@ def safe_fts_search(query: str, config: dict = None,
     except sqlite3.DatabaseError:
         conn2.close()
 
-    # FTS5 still broken — LIKE fallback
     try:
         conn3 = sqlite3.connect(db_path)
         c3 = conn3.cursor()
-        # Split query into words for LIKE matching
         words = query.split()
         conditions = " AND ".join([f"{columns} LIKE ?" for _ in words])
         params = [f"%{w}%" for w in words]
+        like_select = f"{columns}, 0.0 AS rank" if with_rank else columns
         c3.execute(
-            f"SELECT {columns} FROM {table} WHERE {conditions} LIMIT ?",
+            f"SELECT {like_select} FROM {table} WHERE {conditions} LIMIT ?",
             (*params, limit))
         results = c3.fetchall()
         conn3.close()

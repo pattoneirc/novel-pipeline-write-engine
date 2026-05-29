@@ -2,8 +2,8 @@
 test_scene_quality_gate.py — 场景质量门禁测试
 """
 import pytest
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+import os
+
 
 from chapter_pipeline import App, DEFAULT_CONFIG
 

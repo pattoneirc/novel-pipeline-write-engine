@@ -13,33 +13,11 @@ Output:
 """
 
 import sys
-import os
 from pathlib import Path
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
+from path_setup import ensure_paths; ensure_paths()
 
-# Ensure src is importable
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-
-def main():
-    """Main entry point — delegates to src.task_card.task_card_builder."""
-    try:
-        from src.task_card.task_card_builder import main as builder_main
-        return builder_main()
-    except ImportError as e:
-        print(f"[ERROR] Cannot import src.task_card.task_card_builder: {e}")
-        print("[INFO] Ensure the src package is properly structured:")
-        print(f"       src/task_card/task_card_builder.py must exist.")
-        print("[INFO] Falling back to standalone implementation.")
-
-        # Standalone fallback
-        return _standalone_main()
-    except Exception as e:
-        print(f"[ERROR] Task card builder failed: {e}")
-        return 1
+from task_card.task_card_builder import *  # noqa: F401,F403
 
 
 def _standalone_main():
@@ -47,6 +25,8 @@ def _standalone_main():
     import argparse
     import json
     import sqlite3
+
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
     parser = argparse.ArgumentParser(
         description="Build chapter task card from SQLite data",
@@ -64,7 +44,6 @@ def _standalone_main():
     )
     args = parser.parse_args()
 
-    # Load config
     config = {}
     config_path = Path(args.config)
     if config_path.exists():
@@ -92,7 +71,6 @@ def _standalone_main():
     slug = args.novel_slug
     chapter_no = args.chapter_no
 
-    # Get novel_id
     cur = conn.execute("SELECT id, title FROM novels WHERE slug = ?", (slug,))
     row = cur.fetchone()
     if not row:
@@ -102,7 +80,6 @@ def _standalone_main():
 
     novel_id, novel_title = row
 
-    # Get chapter plan
     cur = conn.execute(
         """SELECT chapter_goal, conflict_point, ending_hook_direction,
                   continuity_from_previous, main_event, character_focus,
@@ -114,7 +91,6 @@ def _standalone_main():
     )
     plan_row = cur.fetchone()
 
-    # Get previous chapter tail
     prev_tail = "(无上一章 — 本章为开头章节)"
     if chapter_no > 1:
         cur = conn.execute(
@@ -127,7 +103,6 @@ def _standalone_main():
             tail = content[-400:] if len(content) > 400 else content
             prev_tail = tail.strip()
 
-    # Build markdown
     lines = []
     title = plan_row[9] if plan_row and plan_row[9] else f"第{chapter_no}章"
     lines.append(f"# 任务卡 — {title}")
@@ -176,13 +151,17 @@ def _standalone_main():
     lines.append("")
 
     lines.append("---")
-    lines.append(f"*由 task_card_builder {get_version()} 生成*")
+    try:
+        from version import get_version
+        ver = get_version()
+    except Exception:
+        ver = "v0.5.0"
+    lines.append(f"*由 task_card_builder {ver} 生成*")
     lines.append("")
 
     markdown = "\n".join(lines)
     conn.close()
 
-    # Write output
     output_dir = PROJECT_ROOT / "outputs" / "task_cards"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"chapter_{chapter_no:03d}_task_card.md"
@@ -190,6 +169,22 @@ def _standalone_main():
 
     print(f"Task card written to: {output_path}")
     return 0
+
+
+def main():
+    """Main entry point — delegates to src.task_card.task_card_builder."""
+    try:
+        from task_card.task_card_builder import main as builder_main
+        return builder_main()
+    except ImportError as e:
+        print(f"[ERROR] Cannot import src.task_card.task_card_builder: {e}")
+        print("[INFO] Ensure the src package is properly structured:")
+        print(f"       src/task_card/task_card_builder.py must exist.")
+        print("[INFO] Falling back to standalone implementation.")
+        return _standalone_main()
+    except Exception as e:
+        print(f"[ERROR] Task card builder failed: {e}")
+        return 1
 
 
 if __name__ == "__main__":

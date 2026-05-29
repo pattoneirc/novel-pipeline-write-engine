@@ -12,15 +12,7 @@ revision_task_generator.py — 修改任务生成器 v0.4.0
 import re, json, sys, argparse
 from pathlib import Path
 from typing import Optional
-
-
-def count_chinese(text: str) -> int:
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
-
-
-def split_paragraphs(text: str) -> list[str]:
-    """按空行分段，返回段落列表"""
-    return [p.strip() for p in text.split("\n") if p.strip()]
+from utils import count_chinese, split_paragraphs
 
 
 def find_paragraph_range(chapter: str, target_issue: str) -> dict:

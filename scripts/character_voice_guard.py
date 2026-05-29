@@ -314,7 +314,7 @@ def main():
                     "overuse_warning_threshold": d.get("overuse_warning_threshold", 5),
                 }
             except Exception:
-                pass
+                print(f"[WARN] character_voice_guard: failed to load dialec pack")
     report = run_character_voice_check(content, args.chapter_no, vp, packs)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     if args.output:

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """test_character_voice_guard — 角色口吻门禁测试 v0.4.5"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from character_voice_guard import (
     run_character_voice_check,

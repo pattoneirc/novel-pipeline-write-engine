@@ -1,8 +1,8 @@
 """
 test_continuity_evidence_guard.py — 章章连续证据门禁测试
 """
-import pytest, json, sys, os, tempfile
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+import pytest, json, os, tempfile
+
 from continuity_evidence_guard import run_continuity_evidence_check
 
 

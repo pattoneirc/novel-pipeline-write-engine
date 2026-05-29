@@ -1,8 +1,8 @@
 """
 test_scene_delta_guard.py — 场景推进证据门禁测试
 """
-import pytest, json, sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+import pytest, json, os
+
 from scene_delta_guard import run_scene_delta_check
 
 

@@ -15,10 +15,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# 将 scripts 目录加入 path 以便导入 fts_health
-_SCRIPT_DIR = Path(__file__).resolve().parent.parent
-if str(_SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(_SCRIPT_DIR))
+from path_setup import ensure_paths; ensure_paths()
 
 from fts_health import safe_fts_search
 
@@ -123,7 +120,8 @@ def search_chapters(
         config=config,
         table="novel_chapter_fts",
         columns="rowid",
-        limit=top_k * 2,  # 多取一些供后续 score 排序
+        limit=top_k * 2,
+        with_rank=True,
     )
 
     if not result.get("ok"):
@@ -135,8 +133,8 @@ def search_chapters(
         }
 
     rowids = [r[0] for r in result.get("results", [])]
+    rank_map = {r[0]: -r[1] for r in result.get("results", [])}
 
-    # 补全元数据
     enriched = []
     if enrich and rowids:
         try:
@@ -144,16 +142,14 @@ def search_chapters(
             enriched = _enrich_chapter_results(conn, rowids[:top_k])
             conn.close()
         except Exception as e:
-            # 降级: 只返回 rowid
             enriched = [{"chapter_id": rid, "evidence": "", "source": "fts5"} for rid in rowids[:top_k]]
 
     if not enriched and rowids:
         enriched = [{"chapter_id": rid, "evidence": "", "source": "fts5"} for rid in rowids[:top_k]]
 
-    # 附加 source 和 score 信息
     for item in enriched:
         item["source"] = "fts5"
-        item["score"] = 1.0  # FTS5 默认相关性由 BM25 决定，此处统一标记
+        item["score"] = rank_map.get(item.get("chapter_id"), 0.0)
 
     return {
         "status": "ok",
@@ -191,6 +187,7 @@ def search_chunks(
         table="novel_chunk_fts",
         columns="rowid",
         limit=top_k * 2,
+        with_rank=True,
     )
 
     if not result.get("ok"):
@@ -202,6 +199,7 @@ def search_chunks(
         }
 
     rowids = [r[0] for r in result.get("results", [])]
+    rank_map = {r[0]: -r[1] for r in result.get("results", [])}
 
     enriched = []
     if enrich and rowids:
@@ -217,7 +215,7 @@ def search_chunks(
 
     for item in enriched:
         item["source"] = "fts5_chunk"
-        item["score"] = 1.0
+        item["score"] = rank_map.get(item.get("chunk_id"), 0.0)
 
     return {
         "status": "ok",

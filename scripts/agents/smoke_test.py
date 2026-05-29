@@ -3,8 +3,7 @@
 import sys, json, os
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(PROJECT_ROOT))
+from path_setup import ensure_paths; ensure_paths()
 
 from scripts.agents.base_agent import BaseAgent
 from scripts.agents.context_agent import ContextAgent

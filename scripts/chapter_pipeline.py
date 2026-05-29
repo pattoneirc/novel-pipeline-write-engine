@@ -774,7 +774,8 @@ def ingest(chapter_no, chapter_type="normal"):
             (title, content, wc, str(filepath), ts, ch_id))
         cur.execute("DELETE FROM chapter_chunks WHERE chapter_id=?", (ch_id,))
         try: cur.execute("DELETE FROM novel_chapter_fts WHERE rowid=?", (ch_id,))
-        except: pass
+        except Exception:
+            print(f"[WARN] chapter_pipeline: FTS cleanup failed for chapter {ch_id}")
     else:
         cur.execute("INSERT INTO chapters(novel_id,chapter_no,title,content,word_count,status,file_path,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
             (nid, chapter_no, title, content, wc, 'draft', str(filepath), ts, ts))
@@ -1230,7 +1231,8 @@ def main():
             try:
                 prev_brief = json.loads(prev_brief_path.read_text(encoding='utf-8'))
                 prev_tail_text = prev_brief.get("ending_state", "")
-            except Exception: pass
+            except Exception:
+                print(f"[WARN] chapter_pipeline: failed to parse prev_brief at {prev_brief_path}")
         ce_report = run_continuity_evidence_check(
             chapter_no, content,
             prev_chapter_no=chapter_no-1,

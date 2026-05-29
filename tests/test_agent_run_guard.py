@@ -4,7 +4,7 @@ test_agent_run_guard.py — Quality Guard 测试 (V5: chapter_type不强制下�
 import pytest, json, tempfile, sys, os, io, contextlib, importlib
 from pathlib import Path
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+
 
 GUARD_SCRIPT = Path(__file__).parent.parent / "scripts" / "agent_run_guard.py"
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Test classical_register_guard — 文言/古雅语体门禁测试"""
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from classical_register_guard import (
     run_classical_register_check,

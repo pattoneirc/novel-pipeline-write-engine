@@ -19,13 +19,10 @@ import json
 import re
 from pathlib import Path
 from typing import Optional
+from utils import count_chinese
 
 
 MAX_SCORE = 15
-
-
-def count_chinese(text: str) -> int:
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
 
 
 def run_bridge_evidence_check(

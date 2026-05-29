@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test style_variation_guard — 句式变化门禁测试"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from style_variation_guard import (
     build_report,

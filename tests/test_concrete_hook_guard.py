@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Test concrete_hook_guard — 具体钩子门禁测试"""
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from concrete_hook_guard import run_concrete_hook_check, analyze_ending
 

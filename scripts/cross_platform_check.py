@@ -88,7 +88,7 @@ def main():
                     bad_files.append(str(py_file.relative_to(PROJECT_ROOT)))
                     break
         except Exception:
-            pass
+            print(f"[WARN] cross_platform_check: failed to read {py_file}")
 
     ok_no_paths = len(bad_files) == 0
     detail = "clean" if ok_no_paths else f"found in: {', '.join(bad_files)}"

@@ -1,7 +1,6 @@
 """test_genre_agent.py — Genre agent tests"""
-import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 
 def test_empty_text_no_crash():

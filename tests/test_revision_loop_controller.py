@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test revision_loop_controller — 自动改稿闭环控制器测试"""
-import sys, json, tempfile, os
+import json, tempfile, os
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 from revision_loop_controller import (
     run_suggest_mode, run_controlled_mode, DEFAULT_CONFIG
 )

@@ -56,27 +56,38 @@ def find_migrations(script_dir):
 def run_migrations(conn, migrations):
     """Run pending migrations in order, tracking in schema_migrations."""
     cur = conn.cursor()
-    # Ensure schema_migrations table exists (may have been created by migration itself)
-    cur.execute("CREATE TABLE IF NOT EXISTS schema_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT UNIQUE NOT NULL, applied_at TEXT DEFAULT (datetime('now')))")
+    cur.execute("""CREATE TABLE IF NOT EXISTS schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        applied_at TEXT DEFAULT (datetime('now'))
+    )""")
     conn.commit()
 
-    # Get already-applied migrations
-    cur.execute("SELECT filename FROM schema_migrations")
+    cur.execute("SELECT version FROM schema_migrations")
     applied = {r[0] for r in cur.fetchall()}
 
     for filename, filepath in migrations:
-        if filename in applied:
+        parts = filename.replace('.sql', '').split('_', 1)
+        if len(parts) != 2:
             continue
-        print(f"  [MIG] {filename}...")
+        try:
+            version = int(parts[0])
+        except ValueError:
+            continue
+        name = parts[1]
+
+        if version in applied:
+            continue
+        print(f"  [MIG] v{version:03d}_{name}...")
         with open(filepath, 'r', encoding='utf-8') as f:
             sql = f.read()
         try:
             conn.executescript(sql)
-            cur.execute("INSERT INTO schema_migrations(filename) VALUES(?)", (filename,))
+            cur.execute("INSERT INTO schema_migrations(version, name) VALUES(?, ?)", (version, name))
             conn.commit()
-            print(f"  [OK]  {filename}")
+            print(f"  [OK]  v{version:03d}_{name}")
         except Exception as e:
-            print(f"  [FAIL] {filename}: {e}")
+            print(f"  [FAIL] v{version:03d}_{name}: {e}")
             conn.rollback()
             return False
     return True

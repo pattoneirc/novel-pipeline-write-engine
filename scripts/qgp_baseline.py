@@ -11,13 +11,10 @@ qgp_baseline.py — QGP 风格基线构建 v0.3.1-qgp
     --novel-slug demo_novel \\
     --out data/qgp_baselines/demo_novel.qgp_baseline.json
 """
-import json, sys, argparse, statistics
+import re, json, sys, argparse, statistics
 from pathlib import Path
 from collections import Counter
-
-
-def count_chinese(text: str) -> int:
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+from utils import count_chinese, split_paragraphs, split_sentences
 
 
 def char_ngram_counts(text: str, n: int = 3) -> dict[str, int]:
@@ -28,40 +25,16 @@ def char_ngram_counts(text: str, n: int = 3) -> dict[str, int]:
     return dict(Counter(grams))
 
 
-def split_paragraphs(text: str, min_chars: int = 40) -> list[str]:
-    raw = [p.strip() for p in text.split("\n") if p.strip()]
-    merged, buf = [], ""
-    for p in raw:
-        cn = count_chinese(p)
-        if cn < min_chars:
-            buf += p
-            if count_chinese(buf) >= min_chars:
-                merged.append(buf); buf = ""
-        else:
-            if buf:
-                merged.append(buf); buf = ""
-            merged.append(p)
-    if buf:
-        merged.append(buf)
-    return [p for p in merged if count_chinese(p) >= min_chars]
-
-
-def split_sentences(paragraph: str) -> list[str]:
-    sents = re.split(r'[。！？；\n]', paragraph)
-    return [s.strip() for s in sents if s.strip() and len(s.strip()) >= 3]
-
-import re
-
 
 def analyze_text(text: str) -> dict:
     """单篇文本的风格指标"""
-    paras = split_paragraphs(text)
+    paras = split_paragraphs(text, min_chars=40)
     para_lens = [count_chinese(p) for p in paras]
 
     # 句长
     all_sent_lens = []
     for p in paras:
-        all_sent_lens.extend([len(s) for s in split_sentences(p)])
+        all_sent_lens.extend([len(s) for s in split_sentences(p, min_length=3)])
 
     # 对白比例
     dialogues = re.findall(r'[""「」]([^""「」]+)[""「」]', text)

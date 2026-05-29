@@ -1,8 +1,8 @@
 """
 test_word_count_gate.py — 字数门禁 V5 测试
 """
-import pytest, sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+import pytest, os
+
 
 from chapter_pipeline import _count_chinese, App, DEFAULT_CONFIG
 

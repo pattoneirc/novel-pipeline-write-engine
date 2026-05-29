@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test compliance_selfcheck_guard — 投稿合规自查门禁测试"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from compliance_selfcheck_guard import (
     build_report,

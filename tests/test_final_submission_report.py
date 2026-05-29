@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Test final_submission_report — 最终投稿报告聚合测试"""
-import sys, json
+import json
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
+
 
 from final_submission_report import (
     aggregate_reports,

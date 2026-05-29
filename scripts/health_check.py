@@ -23,13 +23,10 @@ import json
 import sqlite3
 from pathlib import Path
 
+from path_setup import ensure_paths; ensure_paths()
+
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-
-# Ensure src is importable
-_src_path = PROJECT_ROOT
-if str(_src_path) not in sys.path:
-    sys.path.insert(0, str(_src_path))
 
 
 # ═══════════════════════════════════════════════════
@@ -229,9 +226,7 @@ def check_demo_project() -> bool:
 
 def check_guard_registry() -> bool:
     """Guard registry importable and valid."""
-    scripts_dir = SCRIPT_DIR
-    if str(scripts_dir) not in sys.path:
-        sys.path.insert(0, str(scripts_dir))
+    ensure_paths()
     try:
         from guard_registry import GUARD_LEVELS, MODE_GUARDS
         guard_count = len(GUARD_LEVELS)

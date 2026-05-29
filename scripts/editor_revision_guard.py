@@ -11,46 +11,15 @@ editor_revision_guard.py — 拟人审稿痕迹门禁 v0.4.0
   python scripts/editor_revision_guard.py \
     --input chapter.txt --chapter-no 1 [--output report.json]
 """
-import re, json, sys, argparse, statistics
+import json, sys, argparse, statistics
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import List, Dict
+from utils import count_chinese, split_paragraphs, split_sentences
 
 
 # ═══════════════════════════════════════════════════
 # 工具函数
 # ═══════════════════════════════════════════════════
-
-def count_chinese(text: str) -> int:
-    return len([c for c in text if '\u4e00' <= c <= '\u9fff'])
-
-
-def split_sentences(paragraph: str) -> List[str]:
-    """按中文标点分句"""
-    sents = re.split(r'[。！？；\n]', paragraph)
-    return [s.strip() for s in sents if s.strip() and len(s.strip()) >= 2]
-
-
-def split_paragraphs(text: str, min_chars: int = 20) -> List[str]:
-    """按空行分段落"""
-    raw = [p.strip() for p in text.split("\n") if p.strip()]
-    merged = []
-    buf = ""
-    for p in raw:
-        cn = count_chinese(p)
-        if cn < min_chars:
-            buf += p
-            if count_chinese(buf) >= min_chars:
-                merged.append(buf)
-                buf = ""
-        else:
-            if buf:
-                merged.append(buf)
-                buf = ""
-            merged.append(p)
-    if buf:
-        merged.append(buf)
-    return [p for p in merged if count_chinese(p) >= min_chars]
-
 
 # ═══════════════════════════════════════════════════
 # 过度解释检测

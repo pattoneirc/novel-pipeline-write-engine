@@ -13,7 +13,6 @@ import json
 import sqlite3
 import sys
 import argparse
-import os
 from pathlib import Path
 from datetime import datetime
 
@@ -21,33 +20,12 @@ from datetime import datetime
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_SLUG = "demo_novel"
 DEFAULT_CONFIG = PROJECT_ROOT / "config.json"
-from pathlib import Path; import sys; _vdir = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(_vdir))
+
+from path_setup import ensure_paths; ensure_paths()
 from version import get_version; VERSION = get_version()
 PROJECT_NAME = "Novel Pipeline Write Engine"
 
-
-def load_config(config_path: str | None) -> dict:
-    cfg = {}
-    if config_path:
-        p = Path(config_path)
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                cfg = json.load(f)
-    return cfg
-
-
-def get_db_path(config: dict) -> str:
-    return config.get("db_path", str(PROJECT_ROOT / "data" / "novel_memory.db"))
-
-
-def get_novel_id(conn: sqlite3.Connection, slug: str) -> int | None:
-    try:
-        cur = conn.execute("SELECT id, title FROM novels WHERE slug = ?", (slug,))
-        row = cur.fetchone()
-        return row if row else None
-    except Exception:
-        return None
+from utils import load_config, get_db_path, get_novel_id  # noqa: E402
 
 
 def get_chapter_stats(conn: sqlite3.Connection, novel_id: int) -> dict:
@@ -538,14 +516,23 @@ def main():
         print(f"[WARN] Cannot open database: {e}")
         conn = sqlite3.connect(":memory:")
 
-    novel_row = get_novel_id(conn, slug)
-    novel_title = novel_row[1] if novel_row else slug
+    novel_id = get_novel_id(config, slug)
 
-    chapter_stats = get_chapter_stats(conn, novel_row[0]) if novel_row else {"count": 0, "total_words": 0}
-    recent_chapters = get_recent_chapters(conn, novel_row[0]) if novel_row else []
-    guard_summary = get_guard_summary(conn, novel_row[0] if novel_row else None)
+    novel_title = slug
+    if novel_id:
+        try:
+            cur = conn.execute("SELECT title FROM novels WHERE id = ?", (novel_id,))
+            title_row = cur.fetchone()
+            if title_row and title_row[0]:
+                novel_title = title_row[0]
+        except Exception:
+            pass
+
+    chapter_stats = get_chapter_stats(conn, novel_id) if novel_id else {"count": 0, "total_words": 0}
+    recent_chapters = get_recent_chapters(conn, novel_id) if novel_id else []
+    guard_summary = get_guard_summary(conn, novel_id)
     voice_status = get_voice_pack_status()
-    warnings = get_warnings_summary(conn, novel_row[0]) if novel_row else []
+    warnings = get_warnings_summary(conn, novel_id) if novel_id else []
 
     conn.close()
 

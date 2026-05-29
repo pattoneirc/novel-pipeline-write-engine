@@ -3,12 +3,6 @@
 -- Multi-Register Voice System + Long-Term Voice Memory
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS schema_migrations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  filename TEXT UNIQUE NOT NULL,
-  applied_at TEXT DEFAULT (datetime('now'))
-);
-
 CREATE TABLE IF NOT EXISTS voice_packs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   pack_id TEXT UNIQUE NOT NULL,

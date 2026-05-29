@@ -1,8 +1,8 @@
 """test_voice_profile_loader.py — 验证声纹加载优先级"""
 
-import sqlite3, tempfile, os, sys, json
+import sqlite3, tempfile, os, json
 from pathlib import Path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+
 
 from init_db import init_db, find_schema, find_migrations
 from import_voice_packs import import_packs

@@ -87,7 +87,7 @@ pytest tests/ -v
 - [x] 5 种题材模板
 - [x] Windows 一键脚本（install.bat / run_demo.bat / run_report.bat）
 
-## Phase 5: v0.5.5 — Hotfix Quality ✅ (当前版本)
+## Phase 5: v0.5.5 — Hotfix Quality ✅
 
 - [x] 版本号统一（version.py → 全项目读 VERSION）
 - [x] Release 包卫生（config.json 脱敏 / .pytest_cache 排除）
@@ -95,7 +95,13 @@ pytest tests/ -v
 - [x] test subprocess 加 timeout
 - [x] meme_pack_guard type 过滤
 - [x] 3 个新 guard 接入 guard_registry（21 guards）
-- [x] README 测试数更新（43文件/278用例）
+- [x] README 测试数更新（46文件/296用例）
+
+## Phase 5.5: v0.6.5 — Cross-Platform Release ✅ (当前版本)
+
+- [x] 跨平台路径修复
+- [x] Shell 脚本统一
+- [x] 跨平台自检工具
 
 ## Phase 6: 工具增强
 
